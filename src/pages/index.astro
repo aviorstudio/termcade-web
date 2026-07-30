@@ -1,0 +1,12 @@
+---
+import { Counter } from '../components/Counter';
+import Title from '../components/Title.astro';
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout>
+	<main class="flex flex-col items-center gap-12 px-6 py-16">
+		<Title />
+		<Counter client:visible />
+	</main>
+</Layout>
