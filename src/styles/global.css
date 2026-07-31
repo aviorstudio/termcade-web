@@ -1,1 +1,68 @@
-@import "tailwindcss";
+/* Fonts are the platform's own, not fetched. The stacks below reach for the
+   native UI sans and native monospace of each platform, so the site loads what
+   the reader already has, makes no third-party request, sends nobody's IP to a
+   font CDN, and needs no CSP exception to do it. The monospace stack matters
+   twice over here: every terminal frame on this page is text in a <pre>, and
+   it only lines up if the reader's own mono font is what draws it. */
+
+/* The palette is the arcade's, not an invention. --logo is the colour
+   internal/shell/menu.go renders the wordmark in, --pick the colour it renders
+   the selected row in, --on its normal row and --dim its hints; --edge is the
+   playfield border, and --green and --blue are two of the brick colours
+   Brickough draws with. Nothing here was picked from a swatch: the site is the
+   same colours as the thing it advertises, which is also why the captures can
+   be pasted in as they came out and still look like themselves.
+
+   The page is dark because the product is. A terminal arcade shown on paper
+   would be a picture of something else. */
+:root {
+	--void: #000;
+	--ink: #0b0e10;
+	--raised: #12171a;
+	--line: #1e262b;
+	--line-soft: #171d21;
+	--logo: #3fc4c9;
+	--pick: #e6c945;
+	--green: #4fc964;
+	--blue: #4f7de0;
+	--on: #f2f2f2;
+	--paper: #dfe5e8;
+	--quiet: #8a9298;
+	--faint: #6a7278;
+	--edge: #3a3a3a;
+	--sans: system-ui, -apple-system, 'Segoe UI', Roboto, Ubuntu, Cantarell, 'Helvetica Neue', Arial, sans-serif;
+	--mono: ui-monospace, 'SF Mono', 'Cascadia Code', 'JetBrains Mono', Menlo, Consolas, 'DejaVu Sans Mono', monospace;
+	font-family: var(--sans);
+	background: var(--ink);
+	color: var(--paper);
+	font-synthesis: none;
+	color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; background: var(--ink); }
+body { min-width: 320px; min-height: 100svh; margin: 0; background: var(--ink); text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; }
+button, input, textarea, select { font: inherit; }
+img { max-width: 100%; height: auto; }
+::selection { background: var(--logo); color: var(--void); }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+
+/* The frames. Every <pre> on this page is a real capture replayed cell for
+   cell, so these classes are a one-for-one map of the ANSI the arcade emitted:
+   a foreground class per colour it printed in, a fill- class where it painted
+   a cell's background instead of drawing a glyph in it (a pixel that fills a
+   whole cell has no half-block to draw), and .void for the black the canvas
+   clears to. They live here rather than in a component's scoped block because
+   the spans arrive through set:html, which Astro's scoping never reaches. */
+.void { background: var(--void); }
+.logo { color: var(--logo); }
+.pick { color: var(--pick); }
+.on { color: var(--on); }
+.dim { color: #8a8a8a; }
+.edge { color: var(--edge); }
+.green { color: var(--green); }
+.blue { color: var(--blue); }
+.fill-logo { background: var(--logo); }
+.fill-pick { background: var(--pick); }
+.fill-on { background: var(--on); }
+.b { font-weight: 700; }

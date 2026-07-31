@@ -1,0 +1,101 @@
+---
+import '../styles/global.css';
+
+interface Props {
+	title?: string;
+	description?: string;
+}
+
+const {
+	title = 'termcade — an arcade in your terminal',
+	description =
+		'A terminal arcade in Go. Classic games drawn at sub-cell resolution with block pixels, shipped with Asteroid and Tetris, running every game as a sandboxed WebAssembly package — and the same binary is the dev kit for writing your own.',
+} = Astro.props;
+
+const canonical = new URL(Astro.url.pathname, 'https://termcade.com');
+
+// Two entries rather than one. The SoftwareApplication is the thing people are
+// being sent to install; the FAQPage is the questions this page actually
+// answers, and they are the queries that bring anyone here — "terminal games",
+// "play games in the terminal", "go terminal game engine". Both describe what
+// is on the page, which is the only kind of structured data worth emitting.
+const structuredData = [
+	{
+		'@context': 'https://schema.org',
+		'@type': 'SoftwareApplication',
+		name: 'termcade',
+		url: 'https://termcade.com',
+		applicationCategory: 'GameApplication',
+		operatingSystem: 'Linux, macOS, Windows',
+		description,
+		offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+	},
+	{
+		'@context': 'https://schema.org',
+		'@type': 'FAQPage',
+		mainEntity: [
+			{
+				'@type': 'Question',
+				name: 'What is termcade?',
+				acceptedAnswer: {
+					'@type': 'Answer',
+					text:
+						'An arcade that runs in a terminal. It draws its games at sub-cell resolution using Unicode block elements, so one terminal cell becomes a 2x2 or 2x3 grid of pixels, and it ships with two games — Asteroid and Tetris — playable offline as soon as it starts.',
+				},
+			},
+			{
+				'@type': 'Question',
+				name: 'What does it need to run?',
+				acceptedAnswer: {
+					'@type': 'Answer',
+					text:
+						'A truecolor terminal at 80x24 or larger, and Go if you are running it from source. Prebuilt archives are published on GitHub releases. Terminals that speak the Kitty keyboard protocol also give exact held-key input; the rest fall back to auto-repeat.',
+				},
+			},
+			{
+				'@type': 'Question',
+				name: 'How are games loaded?',
+				acceptedAnswer: {
+					'@type': 'Answer',
+					text:
+						'No game is compiled into the arcade. Every game, the bundled ones included, is a WebAssembly package that runs sandboxed under wazero with no filesystem and no network access, on a per-call watchdog. A game that crashes shows a crash screen; a game that fails to install is listed dimmed with the reason.',
+				},
+			},
+			{
+				'@type': 'Question',
+				name: 'Can I write my own game for it?',
+				acceptedAnswer: {
+					'@type': 'Answer',
+					text:
+						'Yes — the arcade is the whole dev kit. termcade dev new scaffolds a playable game, termcade dev build packages it into a .tcade file, and termcade add installs it. A game is a Go package implementing the sdk.Game contract: fixed 60-tick-per-second updates, a seven-key input vocabulary, a structured HUD, and drawing onto a canvas in square logical units.',
+				},
+			},
+		],
+	},
+];
+---
+
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="description" content={description} />
+		<meta name="theme-color" content="#0b0e10" />
+		<meta name="robots" content="index, follow" />
+		<link rel="canonical" href={canonical} />
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<meta property="og:type" content="website" />
+		<meta property="og:site_name" content="termcade" />
+		<meta property="og:title" content={title} />
+		<meta property="og:description" content={description} />
+		<meta property="og:url" content={canonical} />
+		<meta name="twitter:card" content="summary" />
+		<meta name="twitter:title" content={title} />
+		<meta name="twitter:description" content={description} />
+		<meta name="generator" content={Astro.generator} />
+		<title>{title}</title>
+		<script type="application/ld+json" set:html={JSON.stringify(structuredData)} />
+	</head>
+	<body><slot /></body>
+</html>

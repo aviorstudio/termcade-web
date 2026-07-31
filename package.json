@@ -1,7 +1,8 @@
 {
-  "name": "web",
+  "name": "termcade-web",
   "type": "module",
   "version": "0.0.1",
+  "private": true,
   "engines": {
     "node": ">=22.12.0"
   },
@@ -12,10 +13,7 @@
     "astro": "astro"
   },
   "dependencies": {
-    "@builder.io/qwik": "^1.19.2",
-    "@qwikdev/astro": "^0.8.3",
-    "@tailwindcss/vite": "^4.2.2",
-    "astro": "^5.18.1",
-    "tailwindcss": "^4.2.2"
+    "@primer/octicons": "^19.29.2",
+    "astro": "^5.18.1"
   }
 }
