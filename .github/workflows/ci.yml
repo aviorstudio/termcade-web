@@ -1,0 +1,47 @@
+name: CI
+
+# A static site has one way to be broken that matters: it does not build. That
+# is the whole check.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3"
+      - run: bun install --frozen-lockfile
+      - run: bun run build
+      # A build that emits nothing still "succeeds", so the artefact is checked
+      # rather than the exit code.
+      - name: The page was actually written
+        run: test -s dist/index.html
+      # The point of this site is that it ships no JavaScript. Nothing else
+      # would notice an integration being added back, and by then the page has
+      # a runtime it did not need.
+      - name: No JavaScript was shipped
+        run: |
+          if grep -q '<script[^>]*src=' dist/index.html; then
+            echo "dist/index.html loads a script — the page is meant to ship none"
+            exit 1
+          fi
+      # The frames are the page. They are pasted-in captures, and a build that
+      # dropped them would still look like a working site until someone read it.
+      - name: The captures made it onto the page
+        run: |
+          for want in 'class="logo b"' 'class="on void"' 'ASTEROID'; do
+            grep -qF "$want" dist/index.html || { echo "missing from dist/index.html: $want"; exit 1; }
+          done

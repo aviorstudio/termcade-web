@@ -1,12 +1,498 @@
 ---
-import { Counter } from '../components/Counter';
-import Title from '../components/Title.astro';
-import Layout from '../layouts/Layout.astro';
+import Full from '../layouts/Full.astro';
+import octicons from '@primer/octicons';
+
+// The frames are captures, not mock-ups: termcade was run in a pty, the ANSI
+// it wrote was replayed cell for cell, and each file below is one screen as it
+// came out. See the README for how they were taken and what is in them.
+import asteroidFrame from '../frames/asteroid.html?raw';
+import indexFrame from '../frames/index-screen.html?raw';
+import quadFrame from '../frames/pixels-quad.html?raw';
+import sextantFrame from '../frames/pixels-sextant.html?raw';
+import halfFrame from '../frames/pixels-half.html?raw';
+import asciiFrame from '../frames/pixels-ascii.html?raw';
+
+// Each capture file ends in a newline, as a text file should. Inside a <pre>
+// that newline is a blank terminal row at the bottom of the frame.
+const frame = (captured: string) => captured.replace(/\n+$/, '');
+
+const asteroid = frame(asteroidFrame);
+const indexScreen = frame(indexFrame);
+
+const repo = 'https://github.com/aviorstudio/termcade';
+const releases = 'https://github.com/aviorstudio/termcade/releases';
+const docs = 'https://github.com/aviorstudio/termcade/blob/main/docs';
+const icon = (name: keyof typeof octicons, size = 16) =>
+	octicons[name].toSVG({ width: size, height: size });
+
+// Every game the arcade can put in front of you, and where it comes from. Two
+// are in the binary; the third is not, and says so — it is the one that proves
+// the packaging path, so hiding the difference would hide the point.
+const games = [
+	{
+		name: 'ASTEROID',
+		from: 'Bundled',
+		blurb:
+			'Asteroids-style rock shooter. An inertial ship on a wrapping field, and big rocks that split into faster small ones.',
+	},
+	{
+		name: 'TETRIS',
+		from: 'Bundled',
+		blurb:
+			'Falling-block stacker with Super Rotation System kicks, a 7-bag randomizer, ghost piece, lock delay, and gravity that tightens by level.',
+	},
+	{
+		name: 'BRICKOUGH',
+		from: 'Marketplace',
+		blurb:
+			'Breakout-style brick breaker: steer the ball with paddle english, clear the wall, survive the speed-up. It lives outside the arcade repository, the way a third-party game does.',
+	},
+];
+
+// The four pixel styles, each shown as the same ship at the same cells of the
+// same screen — Asteroid's ship sits dead centre at the start of a wave, so
+// four runs put it in exactly the same place and only the glyphs move. The
+// values and the grids are TERMCADE_PIXELS' own.
+const pixelStyles = [
+	{
+		value: 'quad',
+		grid: '2×2',
+		note: 'Unicode 1.0 block elements. Renders anywhere, and the default.',
+		frame: frame(quadFrame),
+	},
+	{
+		value: 'sextant',
+		grid: '2×3',
+		note: 'Sharpest, near-square pixels. Needs Unicode 13, or you get tofu.',
+		frame: frame(sextantFrame),
+	},
+	{
+		value: 'half',
+		grid: '1×2',
+		note: 'The original look, for fonts that struggle with the rest.',
+		frame: frame(halfFrame),
+	},
+	{
+		value: 'ascii',
+		grid: '3×3',
+		note: 'A density ramp and line characters. No block glyphs at all.',
+		frame: frame(asciiFrame),
+	},
+];
+
+const commands = [
+	{ cmd: 'termcade', what: 'play — the marketplace is in here too, on m' },
+	{ cmd: 'termcade add author/slug', what: 'add a game from the marketplace, a .tcade file, or a URL' },
+	{ cmd: 'termcade list', what: 'what is in your arcade' },
+	{ cmd: 'termcade remove author/slug', what: 'take one off, and off your synced library' },
+	{ cmd: 'termcade signup', what: 'create an account — or termcade login, termcade logout' },
+	{ cmd: 'termcade dev new you/mygame', what: 'scaffold a game that is already playable' },
+	{ cmd: 'termcade dev build', what: 'package a game directory into a .tcade' },
+];
+
+// What a game author is committing to. All of it is in sdk/game.go and
+// sdk/input.go, which between them are also the whole dependency list.
+const contract = [
+	{ term: 'Ticks', def: 'Update() runs exactly 60 times a second, stepped off the measured clock rather than drifting' },
+	{ term: 'Input', def: 'four directions, two action buttons and start — with real releases where the terminal sends them' },
+	{ term: 'Drawing', def: 'a canvas in square logical units; the game never sees the pixel grid it lands on' },
+	{ term: 'HUD', def: 'labelled fields and a hint. The shell owns every pixel of the styling' },
+	{ term: 'Dependencies', def: 'the sdk module, which depends on nothing outside the standard library' },
+	{ term: 'Boundary', def: 'wasm ABI v1, frozen. A host refuses a guest whose version it does not speak' },
+];
 ---
 
-<Layout>
-	<main class="flex flex-col items-center gap-12 px-6 py-16">
-		<Title />
-		<Counter client:visible />
-	</main>
-</Layout>
+<Full>
+	<div class="page-shell">
+		<header class="site-header">
+			<a class="brand" href="/" aria-label="termcade home">
+				<svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
+					<rect x="2" y="4" width="28" height="24" rx="4"></rect>
+					<rect class="lit" x="8" y="10" width="7" height="6"></rect>
+					<rect class="unlit" x="17" y="10" width="7" height="6"></rect>
+					<rect class="unlit" x="8" y="18" width="7" height="6"></rect>
+					<rect class="lit" x="17" y="18" width="7" height="6"></rect>
+				</svg>
+				<span>termcade</span>
+			</a>
+			<a class="header-cta" href={repo}>GitHub <span class="icon" set:html={icon('arrow-up-right', 14)} /></a>
+		</header>
+
+		<main>
+			<section class="hero">
+				<div class="hero-copy">
+					<p class="eyebrow"><span></span> Go · WebAssembly · Bubble Tea</p>
+					<h1>An arcade <em>in your terminal.</em></h1>
+					<p class="lede">
+						termcade draws its playfield out of Unicode block elements, so one terminal cell
+						becomes a 2×2 or 2×3 grid of pixels and the games come out sharper than the font
+						should allow. Asteroid and Tetris are in the binary, and play offline the moment it
+						starts.
+					</p>
+					<div class="hero-actions">
+						<code class="install">go run github.com/aviorstudio/termcade@latest</code>
+						<p>One static binary · a truecolor terminal at 80×24 or larger</p>
+					</div>
+				</div>
+
+				<div class="product-frame" aria-label="Asteroid running in termcade">
+					<div class="frame-bar">
+						<div class="frame-brand"><span class="menu-lines"></span> termcade / ASTEROID</div>
+						<div class="frame-actions"><span class="icon" set:html={icon('terminal', 13)} /><span class="icon" set:html={icon('package', 13)} /></div>
+					</div>
+					<div class="term"><pre set:html={asteroid} /></div>
+					<div class="frame-keys"><span>quad</span> 2×2 pixels per cell<i></i><span>wasm</span> sandboxed guest<i></i><span>60 TPS</span> fixed step</div>
+				</div>
+			</section>
+
+			<section class="games">
+				<div class="section-head">
+					<p class="eyebrow"><span></span> In the arcade</p>
+					<h2>Two games in the box, and the way in for the rest.</h2>
+					<p>
+						The starter pack is committed as packages and embedded in the binary, then unpacked
+						into your games directory the first time it runs. The games that come with the arcade
+						are installed exactly the way an added one is — and can be removed exactly the same
+						way.
+					</p>
+				</div>
+				<ul class="game-list">
+					{
+						games.map((game) => (
+							<li>
+								<div class="game-head">
+									<b>{game.name}</b>
+									<span class={game.from === 'Bundled' ? 'tag bundled' : 'tag'}>{game.from}</span>
+								</div>
+								<p>{game.blurb}</p>
+							</li>
+						))
+					}
+				</ul>
+			</section>
+
+			<section class="pixels">
+				<div class="section-head wide">
+					<p class="eyebrow"><span></span> TERMCADE_PIXELS</p>
+					<h2>One ship. Four ways to cut up a cell.</h2>
+					<p>
+						Every setting draws the same game into the same terminal cells; only the sharpness,
+						and what the font has to know how to draw, change. Below is Asteroid's ship at the
+						start of a wave, captured four times over and blown up — the same five columns of
+						cells every time, a different number of pixels inside them. In the arcade <code>p</code> cycles the
+						style and keeps it, and <code>TERMCADE_PIXELS</code> overrides the saved choice for a
+						single run.
+					</p>
+				</div>
+				<div class="pixel-grid">
+					{
+						pixelStyles.map((style) => (
+							<figure>
+								<div class="pixel-frame"><pre set:html={style.frame} /></div>
+								<figcaption>
+									<b>{style.value}</b>
+									<span>{style.grid} per cell</span>
+									<p>{style.note}</p>
+								</figcaption>
+							</figure>
+						))
+					}
+				</div>
+			</section>
+
+			<section class="principles" aria-label="How termcade works">
+				<article>
+					<span class="number">01</span>
+					<div>
+						<h2>Nothing is compiled in</h2>
+						<p>
+							Every game is a WebAssembly package, and it runs under
+							<a href="https://wazero.io">wazero</a> with no filesystem, no network, and a
+							watchdog on every call into it. One that panics gets a crash screen instead of
+							taking the arcade with it, and one that fails to install is listed dimmed, with the
+							reason, rather than quietly missing.
+						</p>
+					</div>
+				</article>
+				<article>
+					<span class="number">02</span>
+					<div>
+						<h2>Held keys, without the half-second stall</h2>
+						<p>
+							Terminals send no key-release events, so a held key is normally guessed from
+							auto-repeat — which stalls for the OS repeat delay after the first press and makes
+							a paddle feel like it is ignoring you. termcade asks for the Kitty keyboard
+							protocol's event-type reporting, and on terminals that answer — kitty, Ghostty,
+							foot, WezTerm, recent xterm — held keys are exact. Everywhere else it falls back
+							without saying anything.
+						</p>
+					</div>
+				</article>
+				<article>
+					<span class="number">03</span>
+					<div>
+						<h2>The renderer owns the look</h2>
+						<p>
+							Games draw in square logical units and never see the pixel grid, so the block
+							style, the cell shape and the ANSI batching are the arcade's business rather than
+							theirs. A game written before a pixel style existed renders in it anyway.
+						</p>
+					</div>
+				</article>
+			</section>
+
+			<section class="arcade">
+				<div class="section-head">
+					<p class="eyebrow"><span></span> The front door</p>
+					<h2>Opens on what you played last.</h2>
+					<p>
+						The library is one keystroke away and the marketplace one more. Browsing and
+						installing the demo packages needs no account; signing in is for having your library
+						follow you between machines, and the arcade has its own sign-in screens, so you never
+						have to come back to a website to do it.
+					</p>
+					<p class="aside">
+						The registry is not serving from termcade.com yet. Until it is, the arcade points at a
+						local development registry, and <code>TERMCADE_REGISTRY</code> moves it — the arcade
+						in the frame here has Brickough installed from one. Downloads are checked against the
+						registry's sha256 before anything lands on disk. Everything else on this page works
+						offline, today.
+					</p>
+				</div>
+
+				<div class="arcade-right">
+					<div class="menu-frame"><pre set:html={indexScreen} /></div>
+					<table>
+						<tbody>
+							{
+								commands.map((row) => (
+									<tr>
+										<th scope="row"><code>{row.cmd}</code></th>
+										<td>{row.what}</td>
+									</tr>
+								))
+							}
+						</tbody>
+					</table>
+				</div>
+			</section>
+
+			<section class="sdk">
+				<div class="section-head">
+					<p class="eyebrow"><span></span> termcade dev</p>
+					<h2>The arcade you play with is the dev kit.</h2>
+					<p>
+						<code>termcade dev new you/mygame</code> scaffolds a game that already runs,
+						<code>termcade dev build</code> turns the directory into a <code>.tcade</code>, and
+						<code>termcade add</code> puts it on your own menu. A game is a Go package implementing
+						one interface — and because the boundary is a frozen wasm ABI rather than a Go one, Go
+						is a convenience and not a requirement.
+					</p>
+					<p class="links">
+						<a href={`${docs}/sdk.md`}>SDK quickstart <span class="icon" set:html={icon('arrow-up-right', 13)} /></a>
+						<a href={`${docs}/packaging.md`}>Packaging <span class="icon" set:html={icon('arrow-up-right', 13)} /></a>
+						<a href={`${docs}/abi.md`}>The wasm ABI <span class="icon" set:html={icon('arrow-up-right', 13)} /></a>
+					</p>
+				</div>
+				<dl class="contract">
+					{
+						contract.map((row) => (
+							<div>
+								<dt>{row.term}</dt>
+								<dd>{row.def}</dd>
+							</div>
+						))
+					}
+				</dl>
+			</section>
+
+			<section class="closing">
+				<p>Two games in the box.<br />The rest is yours to write.</p>
+				<div><span>ONE BINARY</span><i></i><span>SANDBOXED GUESTS</span><i></i><span>60 TICKS A SECOND</span></div>
+				<div class="closing-actions">
+					<a class="primary-cta light" href={repo}>Get termcade <span class="icon" set:html={icon('arrow-right', 16)} /></a>
+					<a class="ghost-cta" href={releases}>Download a binary <span class="icon" set:html={icon('arrow-up-right', 14)} /></a>
+				</div>
+			</section>
+		</main>
+
+		<footer>
+			<a class="brand footer-brand" href="/"><span>termcade</span></a>
+			<p><a href={repo}>source</a> · <a href={releases}>releases</a> · <a href={`${docs}/sdk.md`}>sdk</a> · by Avior Studio</p>
+			<p>© {new Date().getFullYear()} termcade</p>
+		</footer>
+	</div>
+</Full>
+
+<style>
+	.page-shell { min-height: 100svh; overflow-x: hidden; }
+	.site-header { width: min(1180px, calc(100% - 40px)); height: 76px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; }
+	.brand { display: inline-flex; align-items: center; gap: 10px; color: var(--paper); font: 700 18px/1 var(--mono); letter-spacing: -.02em; text-decoration: none; }
+	/* The mark is the product's own idea rather than a logo: one cell, cut into
+	   four pixels, two of them lit. It is the smallest true picture of what the
+	   renderer does, and it survives being 16px in a browser tab. */
+	.brand-mark { width: 27px; height: 27px; }
+	.brand-mark rect:first-child { fill: none; stroke: #465056; stroke-width: 2; }
+	.brand-mark .lit { fill: var(--logo); }
+	.brand-mark .unlit { fill: #2c3438; }
+	.header-cta { display: inline-flex; align-items: center; color: var(--paper); border-bottom: 1px solid #2e3639; padding: 6px 0; font-size: 13px; font-weight: 650; text-decoration: none; white-space: nowrap; }
+	.header-cta span { margin-left: 5px; color: var(--logo); }
+	:global(.icon svg) { display: block; fill: currentColor; }
+
+	.hero { width: min(1180px, calc(100% - 40px)); margin: 70px auto 110px; display: grid; grid-template-columns: .8fr 1.2fr; align-items: center; gap: 60px; }
+	.hero-copy { position: relative; z-index: 2; }
+	.eyebrow { display: flex; align-items: center; gap: 9px; margin: 0 0 22px; color: var(--quiet); font: 620 11px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+	.eyebrow span { width: 7px; height: 7px; border-radius: 50%; background: var(--logo); box-shadow: 0 0 0 4px rgba(63, 196, 201, .15); }
+	h1 { max-width: 600px; margin: 0; color: var(--on); font-size: clamp(46px, 6vw, 78px); font-weight: 590; line-height: .98; letter-spacing: -.062em; }
+	h1 em { color: var(--logo); font-family: Georgia, 'Times New Roman', serif; font-weight: 400; }
+	.lede { max-width: 520px; margin: 30px 0 32px; color: var(--quiet); font-size: 16px; line-height: 1.7; }
+	.hero-actions { display: flex; flex-direction: column; align-items: flex-start; gap: 14px; }
+	.install { display: block; max-width: 100%; overflow-x: auto; border: 1px solid var(--line); border-radius: 5px; background: var(--raised); padding: 13px 16px; color: var(--on); font: 500 12.5px/1 var(--mono); white-space: nowrap; }
+	.hero-actions p { margin: 0; color: var(--faint); font: 500 10px/1.4 var(--mono); text-transform: uppercase; letter-spacing: .05em; }
+
+	/* The frames are text, not screenshots: they stay selectable, they scale
+	   with the reader's font, and they cannot go blurry on a display nobody
+	   captured them for. The trade is that the reader's own monospace font
+	   draws them, so the block glyphs are left alone — no letter-spacing, no
+	   synthesised weight, nothing that would put a seam between two half-blocks
+	   that are meant to be one pixel. */
+	.product-frame { position: relative; min-width: 640px; border: 1px solid var(--line); border-radius: 9px; background: var(--raised); box-shadow: 0 35px 80px rgba(0, 0, 0, .55), 0 3px 10px rgba(0, 0, 0, .4); overflow: hidden; transform: perspective(1400px) rotateY(-3deg) rotateX(1deg); }
+	.product-frame::before { content: ''; position: absolute; z-index: -1; width: 340px; height: 340px; right: -70px; top: -90px; border-radius: 50%; background: var(--logo); filter: blur(80px); opacity: .28; }
+	.frame-bar { height: 42px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); padding: 0 13px; color: var(--quiet); font: 600 10px var(--mono); }
+	.frame-brand, .frame-actions { display: flex; align-items: center; gap: 11px; }
+	.menu-lines { width: 13px; height: 8px; border-block: 1px solid #5a646a; position: relative; }
+	.menu-lines::after { content: ''; position: absolute; left: 0; right: 0; top: 3px; border-top: 1px solid #5a646a; }
+	.frame-actions span { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 4px; background: #1b2226; color: var(--quiet); }
+
+	.term { background: #05080a; padding: 16px 18px; overflow-x: auto; }
+	.term pre { width: max-content; margin: 0; color: var(--on); font: 11px/1 var(--mono); }
+	/* The strip scrolls with the frame above it rather than wrapping: broken
+	   across two lines, "60 TPS" and "fixed step" end up on different rows and
+	   the pairing that makes the strip readable is what breaks first. */
+	.frame-keys { height: 34px; display: flex; align-items: center; gap: 9px; border-top: 1px solid var(--line); background: #05080a; padding: 0 18px; color: var(--faint); font: 9.5px var(--mono); white-space: nowrap; overflow-x: auto; }
+	.frame-keys span { flex: none; color: var(--logo); font-weight: 500; }
+	.frame-keys i { flex: none; width: 3px; height: 3px; border-radius: 50%; background: #2b3337; }
+
+	.section-head h2 { margin: 0 0 22px; color: var(--on); font-size: clamp(30px, 3.6vw, 42px); font-weight: 560; line-height: 1.03; letter-spacing: -.05em; }
+	.section-head p { margin: 0 0 14px; max-width: 470px; color: var(--quiet); font-size: 15px; line-height: 1.7; }
+	.section-head.wide p { max-width: 720px; }
+	.section-head .aside { color: var(--faint); font-size: 13.5px; }
+	.section-head code, .lede code { border-radius: 3px; background: #1a2125; padding: 1px 5px; color: #b6c0c6; font: 12px var(--mono); }
+
+	.games { width: min(1180px, calc(100% - 40px)); margin: 0 auto 110px; display: grid; grid-template-columns: .8fr 1.2fr; align-items: start; gap: 60px; }
+	.game-list { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--line); }
+	.game-list li { border-bottom: 1px solid var(--line); padding: 20px 0; }
+	.game-head { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+	.game-head b { color: var(--on); font: 650 15px var(--mono); letter-spacing: .02em; }
+	/* Bundled and marketplace are told apart by whether the tag is filled in,
+	   not by hue alone, so the distinction survives greyscale. */
+	.tag { border: 1px solid #33454a; border-radius: 3px; padding: 2px 6px; color: var(--quiet); font: 600 9px var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+	.tag.bundled { border-color: transparent; background: rgba(63, 196, 201, .14); color: var(--logo); }
+	.game-list p { max-width: 620px; margin: 0; color: var(--quiet); font-size: 14px; line-height: 1.65; }
+
+	.pixels { width: min(1180px, calc(100% - 40px)); margin: 0 auto 110px; }
+	.pixels .section-head { margin-bottom: 42px; }
+	.pixel-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
+	.pixel-grid figure { margin: 0; }
+	.pixel-frame { display: grid; place-items: center; border: 1px solid var(--line); border-radius: 7px; background: var(--void); padding: 20px 10px; overflow: hidden; }
+	/* Blown up by setting the type larger, not by scaling a picture of it — at
+	   28px the half-blocks are drawn at 28px rather than stretched from 11, so
+	   the pixel the arcade drew is the pixel you see. It is the whole reason
+	   these frames are text. */
+	.pixel-frame pre { width: max-content; margin: 0; font: 28px/1 var(--mono); }
+	figcaption { padding: 14px 2px 0; }
+	figcaption b { color: var(--logo); font: 650 12px var(--mono); }
+	figcaption span { margin-left: 8px; color: var(--faint); font: 500 10px var(--mono); }
+	figcaption p { margin: 8px 0 0; color: var(--quiet); font-size: 12.5px; line-height: 1.6; }
+
+	.principles { width: min(1180px, calc(100% - 40px)); margin: 0 auto 110px; border-top: 1px solid var(--line); }
+	.principles article { display: grid; grid-template-columns: 90px 1fr; border-bottom: 1px solid var(--line); padding: 32px 0; }
+	.principles article div { display: grid; grid-template-columns: .75fr 1fr; align-items: baseline; gap: 40px; }
+	.number { color: var(--logo); font: 650 10px var(--mono); }
+	.principles h2 { margin: 0; color: var(--on); font-size: 22px; font-weight: 580; letter-spacing: -.035em; }
+	.principles p { max-width: 560px; margin: 0; color: var(--quiet); font-size: 14px; line-height: 1.65; }
+	.principles a { color: var(--paper); text-decoration: none; border-bottom: 1px solid #33454a; }
+	.principles a:hover { border-bottom-color: var(--logo); }
+
+	.arcade { width: min(1180px, calc(100% - 40px)); margin: 0 auto 110px; display: grid; grid-template-columns: .8fr 1.2fr; align-items: start; gap: 60px; }
+	.menu-frame { border: 1px solid var(--line); border-radius: 9px; background: #05080a; padding: 22px 0 22px 22px; margin-bottom: 34px; overflow-x: auto; }
+	.menu-frame pre { width: max-content; margin: 0; color: var(--on); font: 11px/1 var(--mono); }
+	.arcade table { width: 100%; border-collapse: collapse; }
+	.arcade th, .arcade td { text-align: left; border-bottom: 1px solid var(--line); padding: 11px 12px 11px 0; font-size: 13px; font-weight: 500; vertical-align: baseline; }
+	.arcade th code { color: var(--on); font: 600 12px var(--mono); white-space: nowrap; }
+	.arcade td { color: var(--quiet); }
+
+	.sdk { width: min(1180px, calc(100% - 40px)); margin: 0 auto 110px; display: grid; grid-template-columns: .9fr 1.1fr; align-items: start; gap: 60px; }
+	.links { display: flex; flex-wrap: wrap; gap: 22px; margin-top: 24px; }
+	.links a { display: inline-flex; align-items: center; gap: 6px; color: var(--paper); border-bottom: 1px solid #2e3639; padding-bottom: 5px; font-size: 13px; font-weight: 650; text-decoration: none; }
+	.links a:hover { border-bottom-color: var(--logo); }
+	.links a span { color: var(--logo); }
+	.contract { margin: 0; border-top: 1px solid var(--line); }
+	.contract div { display: grid; grid-template-columns: 140px 1fr; align-items: baseline; gap: 24px; border-bottom: 1px solid var(--line); padding: 14px 0; }
+	.contract dt { color: var(--on); font: 650 10px var(--mono); letter-spacing: .09em; text-transform: uppercase; }
+	.contract dd { margin: 0; color: var(--quiet); font-size: 13.5px; line-height: 1.6; }
+
+	.closing { width: min(1180px, calc(100% - 40px)); margin: 0 auto; border: 1px solid var(--line); border-radius: 8px; background: var(--raised); padding: 65px; }
+	.closing > p { max-width: 680px; margin: 0 0 50px; color: var(--on); font-size: clamp(42px, 6vw, 72px); font-weight: 530; line-height: .98; letter-spacing: -.055em; }
+	.closing > div { display: flex; align-items: center; gap: 13px; margin-bottom: 35px; color: var(--faint); font: 560 9px var(--mono); letter-spacing: .09em; }
+	.closing > div i { width: 50px; border-top: 1px dashed #333c41; }
+	.closing-actions { display: flex; align-items: center; gap: 22px; }
+	.primary-cta { display: inline-flex; align-items: center; gap: 30px; border-radius: 4px; padding: 14px 18px; font-size: 13px; font-weight: 680; text-decoration: none; transition: transform .18s ease, background .18s ease; }
+	.primary-cta:hover { transform: translateY(-2px); }
+	.primary-cta.light { background: var(--logo); color: #04191a; }
+	.primary-cta.light span { color: #04191a; }
+	.ghost-cta { display: inline-flex; align-items: center; color: var(--paper); border-bottom: 1px solid #2e3639; padding: 6px 0; font-size: 13px; font-weight: 650; text-decoration: none; white-space: nowrap; }
+	.ghost-cta span { margin-left: 5px; color: var(--logo); }
+
+	footer { width: min(1180px, calc(100% - 40px)); min-height: 120px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr 1fr; align-items: center; color: var(--faint); font: 500 10px var(--mono); }
+	footer p { margin: 0; }
+	footer p:nth-child(2) { text-align: center; }
+	footer p:last-child { text-align: right; }
+	footer a { color: var(--faint); text-decoration: none; border-bottom: 1px solid #2a3236; }
+	footer a:hover { color: var(--paper); }
+	/* Needs to outrank `footer a` on the underline, and needs justify-self: the
+	   brand is inline-flex, but a grid item stretches to its column and the
+	   underline would run the full width of a cell the word does not fill. */
+	footer a.footer-brand { justify-self: start; border: 0; color: var(--paper); font-size: 15px; }
+
+	@media (max-width: 1080px) {
+		.pixel-grid { grid-template-columns: repeat(2, 1fr); gap: 26px; }
+	}
+	@media (max-width: 980px) {
+		.hero { grid-template-columns: 1fr; margin-top: 45px; gap: 60px; }
+		.hero-copy { max-width: 680px; }
+		.product-frame { min-width: 0; width: 100%; transform: none; }
+		.games, .arcade, .sdk { grid-template-columns: 1fr; gap: 34px; }
+		.principles article div { grid-template-columns: 1fr; gap: 9px; }
+		.section-head p { max-width: 680px; }
+	}
+	@media (max-width: 600px) {
+		.site-header, .hero, .games, .pixels, .principles, .arcade, .sdk, .closing, footer { width: min(100% - 28px, 1180px); }
+		.site-header { height: 64px; }
+		.hero { margin: 48px auto 80px; }
+		.eyebrow { margin-bottom: 18px; }
+		h1 { font-size: clamp(40px, 12.5vw, 58px); }
+		.lede { margin-top: 24px; font-size: 15px; }
+		.install { font-size: 11px; padding: 11px 13px; }
+		.product-frame { border-radius: 6px; }
+		.term { padding: 12px; }
+		.term pre { font-size: 8.5px; }
+		.frame-keys { padding: 0 12px; font-size: 8.5px; }
+		.games, .pixels, .principles, .arcade, .sdk { margin-bottom: 80px; }
+		.pixel-grid { grid-template-columns: 1fr; }
+		.principles article { grid-template-columns: 42px 1fr; padding: 26px 0; }
+		.principles h2 { font-size: 19px; }
+		.principles p { font-size: 13px; }
+		.menu-frame { padding: 16px 0 16px 16px; }
+		.menu-frame pre { font-size: 8px; }
+		.arcade th code { font-size: 11px; }
+		.contract div { grid-template-columns: 1fr; gap: 6px; }
+		.closing { padding: 40px 25px; }
+		.closing > div { flex-wrap: wrap; }
+		.closing > div i { width: 20px; }
+		.closing-actions { flex-direction: column; align-items: flex-start; gap: 16px; }
+		footer { grid-template-columns: 1fr auto; padding: 30px 0; gap: 8px 0; }
+		.footer-brand { display: none; }
+		footer p:nth-child(2) { text-align: left; }
+	}
+</style>
