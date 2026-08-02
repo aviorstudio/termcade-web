@@ -1,0 +1,40 @@
+name: Test
+description: >
+  Is this commit good. Nothing is published here; a failure means the site is
+  wrong, not that the pipeline is.
+
+  Runs AFTER ../build, because everything it asserts is a property of ./dist. A
+  static site has two ways to be broken that matter -- it did not build, and it
+  built the wrong thing -- and only the second one needs a test.
+
+  The assertions are this site's own and differ from its siblings': how many
+  pages it emits, and what else has to be on them. That is the part worth
+  keeping per-repo.
+
+runs:
+  using: composite
+  steps:
+    # A build that emits nothing still "succeeds", so the artefact is checked
+    # rather than the exit code.
+    - name: The page was actually written
+      shell: bash
+      run: test -s dist/index.html
+    # The point of this site is that it ships no JavaScript. Nothing else
+    # would notice an integration being added back, and by then the page has
+    # a runtime it did not need.
+    - name: No JavaScript was shipped
+      shell: bash
+      run: |
+        if find dist -name '*.js' | grep -q .; then
+          echo "::error::dist contains JavaScript -- this site is meant to ship none"
+          find dist -name '*.js'
+          exit 1
+        fi
+    # The frames are the page. They are pasted-in captures, and a build that
+    # dropped them would still look like a working site until someone read it.
+    - name: The captures made it onto the page
+      shell: bash
+      run: |
+        for want in 'class="logo b"' 'class="on void"' 'ASTEROID'; do
+          grep -qF "$want" dist/index.html || { echo "missing from dist/index.html: $want"; exit 1; }
+        done
