@@ -1,0 +1,28 @@
+name: Build
+description: >
+  The static site, into ./dist.
+
+  A composite action rather than a reusable workflow so it runs in the caller's
+  job, under the caller's name -- CI / Build -- rather than as a nested
+  "caller / callee" check.
+
+  It has exactly one caller: there is no CD here, so nothing can drift from
+  anything. It is split out so this repository has the same shape as the rest of
+  the organisation, and for no stronger reason than that.
+
+  NOTHING LEAVES THE RUNNER. The site is left in ./dist for ../test to assert
+  against.
+
+runs:
+  using: composite
+  steps:
+    # --frozen-lockfile so CI fails on a lockfile that does not match
+    # package.json, rather than quietly resolving something newer than what
+    # anyone has run locally.
+    - name: Install JS dependencies
+      shell: bash
+      run: bun install --frozen-lockfile
+
+    - name: Build
+      shell: bash
+      run: bun run build
