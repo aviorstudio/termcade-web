@@ -25,9 +25,9 @@ const docs = 'https://github.com/aviorstudio/termcade/blob/main/docs';
 const icon = (name: keyof typeof octicons, size = 16) =>
 	octicons[name].toSVG({ width: size, height: size });
 
-// Every game the arcade can put in front of you, and where it comes from. Two
-// are in the binary; the third is not, and says so — it is the one that proves
-// the packaging path, so hiding the difference would hide the point.
+// Every game in the starter pack. They are packages embedded in the binary,
+// not game code compiled into the host, and run through the same wasm boundary
+// as anything added from the marketplace.
 const games = [
 	{
 		name: 'ASTEROID',
@@ -43,9 +43,9 @@ const games = [
 	},
 	{
 		name: 'BRICKOUGH',
-		from: 'Marketplace',
+		from: 'Bundled',
 		blurb:
-			'Breakout-style brick breaker: steer the ball with paddle english, clear the wall, survive the speed-up. It lives outside the arcade repository, the way a third-party game does.',
+			'Breakout-style brick breaker: steer the ball with paddle english, clear the wall, survive the speed-up.',
 	},
 ];
 
@@ -82,12 +82,13 @@ const pixelStyles = [
 
 const commands = [
 	{ cmd: 'termcade', what: 'play — the marketplace is in here too, on m' },
-	{ cmd: 'termcade add author/slug', what: 'add a game from the marketplace, a .tcade file, or a URL' },
+	{ cmd: 'termcade add author/slug', what: 'add a marketplace game to your account and this machine' },
 	{ cmd: 'termcade list', what: 'what is in your arcade' },
 	{ cmd: 'termcade remove author/slug', what: 'take one off, and off your synced library' },
 	{ cmd: 'termcade signup', what: 'create an account — or termcade login, termcade logout' },
 	{ cmd: 'termcade dev new you/mygame', what: 'scaffold a game that is already playable' },
 	{ cmd: 'termcade dev build', what: 'package a game directory into a .tcade' },
+	{ cmd: 'termcade dev install build/game.tcade', what: 'install a local package while developing' },
 ];
 
 // What a game author is committing to. All of it is in sdk/game.go and
@@ -148,7 +149,7 @@ const contract = [
 			<section class="games">
 				<div class="section-head">
 					<p class="eyebrow"><span></span> In the arcade</p>
-					<h2>Two games in the box, and the way in for the rest.</h2>
+					<h2>Three games in the box, and the way in for the rest.</h2>
 					<p>
 						The starter pack is committed as packages and embedded in the binary, then unpacked
 						into your games directory the first time it runs. The games that come with the arcade
@@ -246,17 +247,16 @@ const contract = [
 					<p class="eyebrow"><span></span> The front door</p>
 					<h2>Opens on what you played last.</h2>
 					<p>
-						The library is one keystroke away and the marketplace one more. Browsing and
-						installing the demo packages needs no account; signing in is for having your library
-						follow you between machines, and the arcade has its own sign-in screens, so you never
-						have to come back to a website to do it.
+						The library is one keystroke away and the marketplace one more. Browsing is
+						open; signing in adds a game to the account library and installs it on this machine.
+						The library follows you to the web app and every terminal where you sign in, and the
+						arcade has its own account screens.
 					</p>
 					<p class="aside">
-						The registry is not serving from termcade.com yet. Until it is, the arcade points at a
-						local development registry, and <code>TERMCADE_REGISTRY</code> moves it — the arcade
-						in the frame here has Brickough installed from one. Downloads are checked against the
-						registry's sha256 before anything lands on disk. Everything else on this page works
-						offline, today.
+						The live registry is <code>api.termca.de</code>. Package bytes pass through it and are
+						checked against the sha256 recorded when the release was published before either the
+						terminal or web app runs them. <code>TERMCADE_REGISTRY</code> selects a local registry
+						for development.
 					</p>
 				</div>
 
@@ -284,7 +284,7 @@ const contract = [
 					<p>
 						<code>termcade dev new you/mygame</code> scaffolds a game that already runs,
 						<code>termcade dev build</code> turns the directory into a <code>.tcade</code>, and
-						<code>termcade add</code> puts it on your own menu. A game is a Go package implementing
+						<code>termcade dev install</code> puts the local build on your own menu. A game is a Go package implementing
 						one interface — and because the boundary is a frozen wasm ABI rather than a Go one, Go
 						is a convenience and not a requirement.
 					</p>
@@ -307,7 +307,7 @@ const contract = [
 			</section>
 
 			<section class="closing">
-				<p>Two games in the box.<br />The rest is yours to write.</p>
+				<p>Three games in the box.<br />The rest is yours to write.</p>
 				<div><span>ONE BINARY</span><i></i><span>SANDBOXED GUESTS</span><i></i><span>60 TICKS A SECOND</span></div>
 				<div class="closing-actions">
 					<a class="primary-cta light" href={repo}>Get termcade <span class="icon" set:html={icon('arrow-right', 16)} /></a>
