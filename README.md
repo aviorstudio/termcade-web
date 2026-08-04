@@ -50,8 +50,7 @@ What is in each one, and what a re-run would change:
   reseeds on `Reset`), so a re-run gets a different field. The HUD, the border,
   the controls hint and the high score are the arcade's own.
 - **`index-screen.html`** — the arcade's index. Whatever is in the machine's
-  recently-played list is what lands on the page, Brickough included; see the
-  note on the registry below.
+  recently-played list is what lands on the page, Brickough included.
 - **`pixels-*.html`** — the same ship in the same cells, four times.
   Asteroid starts a wave with the ship dead centre, so these four are
   reproducible and differ in nothing but how a cell is subdivided. They are set
@@ -62,11 +61,9 @@ What is in each one, and what a re-run would change:
 
 Nothing is invented. The claims worth re-checking when the arcade changes:
 
-- **The three games and their descriptions** are the arcade's own README.
-  Asteroid and Tetris are the starter pack, committed as `.tcade` packages and
-  embedded in the binary; Brickough is not in that repository at all, which is
-  why the page tags it differently rather than listing three games as though
-  they arrived the same way.
+- **The three games and their descriptions** are the arcade's own README. All
+  three are starter-pack `.tcade` packages committed in the arcade repository
+  and embedded in the binary.
 - **The pixel table** — the values, the grids and the font requirements are
   `TERMCADE_PIXELS`', including that `quad` is the default and that `sextant`
   needs Unicode 13 or renders as tofu.
@@ -84,12 +81,9 @@ Nothing is invented. The claims worth re-checking when the arcade changes:
   protocol's event-type reporting where the terminal answers, and the
   auto-repeat fallback in `sdk.KeyTracker` everywhere else.
 
-**The registry is not live, and the page says so.** `registry.DefaultURL` is
-`http://127.0.0.1:8080` until termcade.com is serving, so `termcade add` talks
-to a local development registry and not to anything a visitor has. The
-marketplace section states that in its own paragraph rather than letting the
-command table imply otherwise, and the arcade in `index-screen.html` has
-Brickough installed from exactly such a registry.
+**The registry is live.** Released clients use `https://api.termca.de`.
+`TERMCADE_REGISTRY` selects a different registry for development; the public
+site describes the production path.
 
 ## Colour
 
