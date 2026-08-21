@@ -1,0 +1,30 @@
+name: Captures
+description: >
+  Are the checked-in terminal captures fresh. tools/capture.py --check
+  regenerates the deterministic frames (pixels-*.html) from the pinned
+  termcade release and compares them byte for byte; the nondeterministic ones
+  (asteroid.html, index-screen.html) are asserted on structure only, because
+  exact comparison would gate a dice roll. The full capture contract --
+  release pin, 96x30 pty, pixel modes, timing thresholds -- is the docstring
+  of tools/capture.py.
+
+  Runs against ./src, not ./dist, so it does not depend on ../build.
+
+runs:
+  using: composite
+  steps:
+    # The pin is one line in one file so bumping it is one diff, here and for
+    # anyone capturing locally. The archive is verified against the release's
+    # own checksums before it is run.
+    - name: Download the pinned termcade release
+      shell: bash
+      run: |
+        tag=$(cat tools/termcade-release)
+        base="https://github.com/aviorstudio/termcade/releases/download/$tag"
+        curl -fsSL "$base/termcade_Linux_x86_64.tar.gz" -o /tmp/termcade_Linux_x86_64.tar.gz
+        curl -fsSL "$base/checksums.txt" -o /tmp/checksums.txt
+        cd /tmp && sha256sum -c checksums.txt --ignore-missing
+        tar -xzf termcade_Linux_x86_64.tar.gz termcade
+    - name: The checked-in captures are fresh
+      shell: bash
+      run: python3 tools/capture.py --check /tmp/termcade
