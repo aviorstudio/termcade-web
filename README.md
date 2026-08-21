@@ -67,8 +67,12 @@ they are fixed in one place — the docstring of `tools/capture.py` — and
 summarised here:
 
 - **Binary**: the GitHub release pinned in `tools/termcade-release`
-  (currently v0.0.7). `--check` verifies `termcade version` against it. Bump
-  the pin deliberately, regenerate, and review the diff.
+  (currently v0.0.7), with the SHA-256 of the Linux x86_64 archive committed
+  in `tools/termcade-release.sha256` — CI verifies the download against that
+  hash, not against checksums hosted beside the release, so replacing release
+  assets cannot make CI run an unreviewed binary. `--check` verifies
+  `termcade version` against the pin. Bump both files deliberately,
+  regenerate, and review the diff.
 - **Terminal**: a pty of exactly 96 columns × 30 rows, `TERM=xterm-256color`,
   `COLORTERM=truecolor`.
 - **Pixel mode**: `TERMCADE_PIXELS=quad` for the index and hero frames; each
