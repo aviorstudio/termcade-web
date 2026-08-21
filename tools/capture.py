@@ -6,14 +6,50 @@ arcade on a real pty, replays the ANSI it writes into a grid of cells, and
 prints that grid as spans — so what the page shows is what the terminal showed,
 still selectable, still scaling with the reader's font.
 
-    python3 tools/capture.py /path/to/termcade > /dev/null
+    python3 tools/capture.py /path/to/termcade > /dev/null   # refresh all frames
+    python3 tools/capture.py --check /path/to/termcade       # CI freshness gate
 
-Writes src/frames/*.html. Every frame is taken from a full repaint (the arcade
-otherwise sends cell diffs, and a diff is only meaningful against the screen it
-was diffed from), which is forced by resizing the pty and letting the shell
-redraw. Games seed themselves from the clock, so the rocks in the hero frame
-are whatever that run rolled; the ship crops are the same five cells in every
-style because Asteroid starts a wave with the ship dead centre.
+THE CAPTURE CONTRACT. A capture is only comparable to another capture when all
+of this holds, so it is written down once, here, and enforced by --check:
+
+- binary: the GitHub release pinned in tools/termcade-release, nothing else.
+  --check verifies `termcade version` against it; a full run warns on anything
+  else. Bump the pin deliberately, regenerate, and review the diff.
+- terminal: a pty of exactly 96 columns x 30 rows (ROWS, COLS below), with
+  TERM=xterm-256color and COLORTERM=truecolor.
+- pixel mode: TERMCADE_PIXELS=quad for the index and hero frames; each style
+  for its own ship crop.
+- timing: a game is started from the library screen — every installed game,
+  sorted by title — by reading the screen and walking the selection to the
+  game's row. Not the index screen: its recent rows are the machine's play
+  history, empty on a fresh arcade and ordered by it everywhere else, and not
+  fixed keystrokes: a fixed number of moves on a screen whose rows vary
+  starts a different game on a different machine. The library is read until
+  the game's row and the selection marker are on it, up to 30s — a cold
+  state directory is unpacked between the logo and the list, and "the output
+  went quiet" is not a menu. Once the game is up, keys are typed on a fixed
+  schedule in seconds from the game's first screen (the scripts in main). A frame is only ever taken from a full repaint — the
+  arcade otherwise sends cell diffs, and a diff is only meaningful against the
+  screen it was diffed from — which is forced by nudging the pty size and
+  letting the shell redraw. A repaint segment shorter than 400 bytes is a
+  redraw cut off by the next one and is dropped. Capture ends 1.0s after the
+  last scripted event; the pty is polled every 20ms; the resize nudge settles
+  for 150ms. A run that never reaches the wave is retried (ATTEMPTS) rather
+  than captured wrong.
+
+WHAT --check GATES. The four pixels-*.html crops are deterministic in shape:
+Asteroid starts every wave with the ship dead centre and untouched, so a
+re-run of the pinned binary draws the same ship in the same pixels. Its
+absolute cell can wander by one between runs (sub-cell spawn rounding), so the
+crops are written and compared trimmed to the ship's bounding box — position
+is presentation, shape is content. --check fails if the checked-in files
+differ byte for byte. asteroid.html is clock-seeded (games/asteroid reseeds on
+Reset) and index-screen.html reflects the capturing machine's library and
+recently-played order, so exact comparison would be a coin flip dressed as a
+gate; --check asserts only their deterministic structure and the README
+describes how they are reviewed and refreshed. --check runs against an
+isolated, empty state directory, because a fresh arcade is the only
+reproducible one.
 """
 import fcntl
 import os
@@ -22,12 +58,16 @@ import re
 import signal
 import struct
 import select
+import subprocess
 import sys
+import tempfile
 import termios
 import time
 
 ROWS, COLS = 30, 96
+ATTEMPTS = 3
 FRAMES = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src', 'frames')
+RELEASE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'termcade-release')
 
 # The arcade's own colours, named so the markup reads as a palette rather than
 # as c0..cN. Sources: internal/shell/menu.go for the wordmark, the selected row
@@ -45,6 +85,12 @@ NAMES = {
 BLANK = (' ', None, None, False)
 
 
+class LaunchError(Exception):
+    """The game never came up: its row was missing from the index, or the
+    screen after Enter was not its game screen. Transient (a slow unpack, a
+    half-read menu), so callers retry."""
+
+
 # --- running it ------------------------------------------------------------
 
 def drive(binary, script, pixels):
@@ -53,16 +99,133 @@ def drive(binary, script, pixels):
     script is a list of (seconds_from_start, keys | 'RESIZE'). RESIZE nudges
     the window and puts it back, which is what makes the shell repaint in full.
     """
+    pid, fd = fork(binary, pixels)
+    out = bytearray()
+    play(fd, pid, script, out)
+    os.kill(pid, signal.SIGKILL)
+    os.waitpid(pid, 0)
+    os.close(fd)
+    return out.decode('utf-8', 'replace')
+
+
+def drive_game(binary, game, script, pixels):
+    """Start `game` from the library — wherever the library happens to list
+    it — then play `script`, timed in seconds from the game's first screen,
+    and keep everything the arcade said from the first menu paint onward."""
+    pid, fd = fork(binary, pixels)
+    out = read_menu(fd, game)
+    if out is None:
+        os.kill(pid, signal.SIGKILL)
+        os.waitpid(pid, 0)
+        os.close(fd)
+        raise LaunchError(f'the library screen never listed {game} — '
+                          'the arcade is slower than the capture contract '
+                          'allows')
+    rows = [''.join(ch for ch, _, _, _ in row)
+            for row in replay(out.decode('utf-8', 'replace'))]
+    selected = next((i for i, r in enumerate(rows) if '▸' in r), None)
+    target = next((i for i, r in enumerate(rows) if game in r), None)
+    if selected is None or target is None:
+        os.kill(pid, signal.SIGKILL)
+        os.waitpid(pid, 0)
+        os.close(fd)
+        raise LaunchError(f'the library screen has no row for {game} — '
+                          'is this the pinned release?')
+    moves = target - selected
+    os.write(fd, (b'j' if moves > 0 else b'k') * abs(moves))
+    # Wait until the selection actually sits on the game's row before
+    # committing to it — a busy runner can take a moment per move, and an
+    # Enter against a selection that has not landed starts the wrong game.
+    deadline = time.time() + 5.0
+    while time.time() < deadline:
+        if not select.select([fd], [], [], 0.05)[0]:
+            continue
+        try:
+            chunk = os.read(fd, 65536)
+        except OSError:
+            break
+        if not chunk:
+            break
+        out += chunk
+        rows = [''.join(ch for ch, _, _, _ in row)
+                for row in replay(out.decode('utf-8', 'replace'))]
+        if target < len(rows) and '▸' in rows[target]:
+            break
+    os.write(fd, b'\r')
+    play(fd, pid, script, out)
+    os.kill(pid, signal.SIGKILL)
+    os.waitpid(pid, 0)
+    os.close(fd)
+    text = out.decode('utf-8', 'replace')
+    # The menu alone contains the name, so check the settled final screen:
+    # the game is up when its name is on a screen with the canvas's black
+    # behind it — the menu never paints a background.
+    cells = replay(text)
+    final = '\n'.join(''.join(ch for ch, _, _, _ in row) for row in cells)
+    has_canvas = any(bg == (0, 0, 0) for row in cells for _, _, bg, _ in row)
+    if not (has_canvas and game in final):
+        raise LaunchError(f'{game} did not start — the keys reached the '
+                          'arcade but the game screen never came up')
+    return text
+
+
+def fork(binary, pixels):
     pid, fd = pty.fork()
     if pid == 0:
         env = dict(os.environ, TERM='xterm-256color', COLORTERM='truecolor',
                    TERMCADE_PIXELS=pixels)
         os.execve(binary, [binary], env)
     setwin(fd, ROWS, COLS)
+    return pid, fd
+
+
+def read_menu(fd, game, limit=30.0):
+    """Read the index, open the library with 'l', and read until the library
+    lists `game` next to a selection marker.
+
+    The library, not the index: the index's recent rows are the machine's
+    play history — empty on a fresh arcade, ordered by it everywhere else —
+    while the library is every installed game sorted by title, the same rows
+    on any machine with the same games installed. And not "until the output
+    goes quiet": a cold state directory is unpacked between the logo and the
+    list, and on a slow runner that pause outlasts any idle threshold that
+    does not also add seconds to every warm run. The screen containing the
+    row is the only honest signal."""
     out = bytearray()
     start = time.time()
+    opened = False
+    while time.time() - start < limit:
+        if not select.select([fd], [], [], 0.05)[0]:
+            continue
+        try:
+            chunk = os.read(fd, 65536)
+        except OSError:
+            break
+        if not chunk:
+            break
+        out += chunk
+        rows = [''.join(ch for ch, _, _, _ in row)
+                for row in replay(out.decode('utf-8', 'replace'))]
+        if not opened:
+            if any('▸' in r for r in rows):
+                os.write(fd, b'l')
+                opened = True
+        # The title row, not the index's '→ LIBRARY' action: the index of a
+        # machine with history can list the game itself, and navigating that
+        # would walk the wrong screen.
+        elif (any(r.strip() == 'LIBRARY' for r in rows)
+              and any('▸' in r for r in rows)
+              and any(game in r for r in rows)):
+            return out
+    return None
+
+
+def play(fd, pid, script, out):
+    """Type the timed script at the pty, appending everything the arcade says
+    while it runs."""
+    start = time.time()
     pending = list(script)
-    end = pending[-1][0] + 1.0
+    end = (pending[-1][0] if pending else 0.0) + 1.0
     while time.time() - start < end:
         while pending and pending[0][0] <= time.time() - start:
             _, keys = pending.pop(0)
@@ -82,10 +245,6 @@ def drive(binary, script, pixels):
             if not chunk:
                 break
             out += chunk
-    os.kill(pid, signal.SIGKILL)
-    os.waitpid(pid, 0)
-    os.close(fd)
-    return out.decode('utf-8', 'replace')
 
 
 def setwin(fd, rows, cols):
@@ -260,34 +419,152 @@ def write(name, frame):
 
 
 def main(binary):
+    warn_unpinned(binary)
+
     # The index screen. Whatever is in the arcade's recently-played list is
     # what lands on the page, so run it against an arcade worth showing.
     menu = drive(binary, [(1.5, 'RESIZE')], 'quad')
     write('index-screen', trim(replay(menu)))
 
     # The hero: Asteroid, a few seconds in, so there are bullets and a wave
-    # that has been shot at rather than an untouched one.
-    play = [(1.5, 'l'), (2.0, '\r'), (3.2, ' '), (3.5, 'w'), (4.1, 'd'),
-            (4.4, ' '), (4.8, 'w'), (5.4, ' '), (6.4, 'RESIZE')]
-    write('asteroid', trim(repaints(drive(binary, play, 'quad'))[-1]))
+    # that has been shot at rather than an untouched one. Timed from the
+    # game's first screen.
+    play = [(1.2, ' '), (1.5, 'w'), (2.1, 'd'),
+            (2.4, ' '), (2.8, 'w'), (3.4, ' '), (4.4, 'RESIZE')]
+    try:
+        hero = drive_game(binary, 'ASTEROID', play, 'quad')
+    except LaunchError as e:
+        sys.exit(str(e))
+    write('asteroid', trim(repaints(hero)[-1]))
 
-    # The ship, in each pixel style, from the same cells of the same screen:
-    # Asteroid puts the ship dead centre at the start of a wave, so four runs
-    # differ in nothing but how a cell is cut up.
-    start = [(1.5, 'l'), (2.0, '\r'), (2.6, 'RESIZE')]
+    for style, frame in pixels_frames(binary):
+        # Trimmed to the ship's bounding box: the absolute cell can wander by
+        # one between runs, the ship cannot, and the painted black margin is
+        # the same black the page frames them on. Trimming is what makes these
+        # four files byte-for-byte reproducible, which is what --check gates.
+        write('pixels-' + style, trim(frame))
+
+
+def pixels_frames(binary):
+    """The ship, in each pixel style, from the same cells of the same screen:
+    Asteroid puts the ship dead centre at the start of a wave, so four runs
+    differ in nothing but how a cell is cut up. These four are the
+    deterministic captures --check compares byte for byte."""
+    # 0.6s after the game's first screen the wave is drawn and nothing has
+    # had time to drift into the centre, which is where the crop is taken.
+    start = [(0.6, 'RESIZE')]
     for style in ('quad', 'sextant', 'half', 'ascii'):
-        crops = [[row[42:56] for row in frame[12:18]]
-                 for frame in repaints(drive(binary, start, style))]
-        # A repaint of the library screen is still a repaint, and the wave can
-        # be one frame from being drawn: take the last one with a ship in it
-        # rather than the last one, and say so if a run never got that far.
-        drawn = [c for c in crops if any(cell[0] != ' ' for row in c for cell in row)]
-        if not drawn:
-            sys.exit(f'{style}: no frame with the ship in it — try again')
-        write('pixels-' + style, drawn[-1])
+        yield style, wave_frame(binary, start, style)
+
+
+def wave_frame(binary, script, style):
+    """The last wave-start repaint of one run, cropped to the cells around the
+    ship. A repaint of the library screen is still a repaint, and a slow start
+    can leave the run short of the wave: only a crop with the canvas's black
+    behind it is a game frame (the library never paints a background), and a
+    run that produced none is retried rather than captured wrong."""
+    for attempt in range(1, ATTEMPTS + 1):
+        try:
+            frames = repaints(drive_game(binary, 'ASTEROID', script, style))
+        except LaunchError as e:
+            print(f'{style}: attempt {attempt}/{ATTEMPTS}: {e}', file=sys.stderr)
+            continue
+        crops = [[row[42:56] for row in frame[12:18]] for frame in frames]
+        drawn = [c for c in crops
+                 if any(bg == (0, 0, 0) for row in c for _, _, bg, _ in row)]
+        if drawn:
+            return drawn[-1]
+        print(f'{style}: attempt {attempt}/{ATTEMPTS} never reached the wave', file=sys.stderr)
+    sys.exit(f'{style}: no wave frame in {ATTEMPTS} attempts — '
+             'the arcade started slower than the capture contract allows')
+
+
+# --- the freshness gate ----------------------------------------------------
+
+def expected_release():
+    with open(RELEASE) as f:
+        return f.read().strip()
+
+
+def binary_version(binary):
+    out = subprocess.run([binary, 'version'], capture_output=True, text=True,
+                         timeout=10)
+    return out.stdout.strip()
+
+
+def warn_unpinned(binary):
+    tag = expected_release()
+    version = binary_version(binary)
+    if not version.startswith(f'termcade {tag}'):
+        print(f'warning: {binary} is {version!r}, not the pinned release '
+              f'{tag} — frames captured from it will fail --check',
+              file=sys.stderr)
+
+
+def check(binary):
+    """Fail if the deterministic captures are stale. Nondeterministic frames
+    are asserted on structure only; anything exact would be gating a dice
+    roll."""
+    tag = expected_release()
+    version = binary_version(binary)
+    if not version.startswith(f'termcade {tag}'):
+        sys.exit(f'{binary} is {version!r}, not the pinned release {tag} — '
+                 'captures must come from the release in tools/termcade-release')
+
+    # A fresh arcade is the only reproducible one: recently-played order and
+    # high scores are state, and state the runner happens to have must not
+    # leak into a capture. That means the config directory too -- scores live
+    # in os.UserConfigDir(), not next to the games.
+    with tempfile.TemporaryDirectory() as state:
+        os.environ['HOME'] = state
+        os.environ['XDG_DATA_HOME'] = state
+        os.environ['XDG_CONFIG_HOME'] = state
+        fresh = {style: to_html(trim(frame)) + '\n'
+                 for style, frame in pixels_frames(binary)}
+
+    stale = []
+    for style, text in fresh.items():
+        name = f'pixels-{style}.html'
+        try:
+            with open(os.path.join(FRAMES, name)) as f:
+                if f.read() != text:
+                    stale.append(name)
+        except FileNotFoundError:
+            stale.append(name + ' (missing)')
+    if stale:
+        sys.exit('stale capture(s): ' + ', '.join(stale) + ' — regenerate with '
+                 '`python3 tools/capture.py <binary>` against the pinned '
+                 'release and review the diff')
+
+    # The clock-seeded hero and the machine-state index screen cannot be
+    # compared exactly. What can be asserted is that they are the screens they
+    # claim to be: the hero has the playfield border over the cleared canvas,
+    # the index has a selected row.
+    structure = {
+        'asteroid.html': ['class="edge"', 'void'],
+        'index-screen.html': ['class="pick b"'],
+    }
+    for name, needles in structure.items():
+        try:
+            with open(os.path.join(FRAMES, name)) as f:
+                text = f.read()
+        except FileNotFoundError:
+            sys.exit(f'{name}: missing — regenerate with '
+                     '`python3 tools/capture.py <binary>`')
+        for needle in needles:
+            if needle not in text:
+                sys.exit(f'{name}: missing {needle!r} — the capture is not '
+                         'the screen it claims to be; regenerate with '
+                         '`python3 tools/capture.py <binary>`')
+    print('captures are fresh: pixels-*.html match the pinned release '
+          f'{tag} byte for byte; asteroid.html and index-screen.html have '
+          'their expected structure', file=sys.stderr)
 
 
 if __name__ == '__main__':
-    if len(sys.argv) != 2:
-        sys.exit('usage: capture.py /path/to/termcade')
-    main(os.path.abspath(sys.argv[1]))
+    if len(sys.argv) == 3 and sys.argv[1] == '--check':
+        check(os.path.abspath(sys.argv[2]))
+    elif len(sys.argv) == 2:
+        main(os.path.abspath(sys.argv[1]))
+    else:
+        sys.exit('usage: capture.py [--check] /path/to/termcade')
