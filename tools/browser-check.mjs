@@ -6,14 +6,19 @@
 //     responses (tolerance: zero, at either viewport)
 //   - missing document landmarks: exactly one <h1>, a <header>, <main> and
 //     <footer>, html[lang], a title and a meta description
-//   - inaccessible content: every link has link text, and every inline <svg>
-//     is either aria-hidden (decorative) or carries an accessible name. There
-//     are no raster images on the page, so no alt rule binds. The terminal
-//     frames are text by design -- selectable and readable as text, which is
-//     the point of them -- so no label assertion binds to them either; a
-//     previous version asserted aria-labels on their plain <div> wrappers,
-//     which assistive technology ignores on role-less elements, and the
-//     assertion was removed rather than kept as theatre.
+//   - inaccessible content: every link and every unhidden <svg>/<img> has a
+//     non-empty COMPUTED accessible name, read from Chrome's accessibility
+//     tree (CDP Accessibility.getFullAXTree) rather than from raw markup --
+//     an empty aria-label, an aria-labelledby pointing nowhere, or text
+//     hidden with display:none all compute to an empty name, and raw
+//     attribute checks wave them through. Decorative SVGs carry aria-hidden
+//     and never reach the tree. There are no raster images on the page, so
+//     no alt rule binds. The terminal frames are text by design -- selectable
+//     and readable as text, which is the point of them -- so no label
+//     assertion binds to them either; a previous version asserted aria-labels
+//     on their plain <div> wrappers, which assistive technology ignores on
+//     role-less elements, and the assertion was removed rather than kept as
+//     theatre.
 //   - horizontal overflow: no page-level horizontal scrollbar, and no
 //     top-level section extending past the viewport edge
 //   - broken links: every internal href returns 200 from the built site, and
@@ -23,9 +28,9 @@
 //
 //   viewports      1280x800 (desktop) and 390x844 (mobile, touch + isMobile)
 //   link timeout   10000ms per external link, one attempt, redirects followed
-//   accessibility  the landmark and alternative-text assertions above; there
-//                  are no raster images on the page, so the alt rule binds to
-//                  the inline SVGs and the labelled terminal frames
+//   accessibility  the landmark assertions above, plus a non-empty computed
+//                  accessible name for every link and unhidden SVG/image,
+//                  taken from the browser accessibility tree at each viewport
 //
 // Usage: node tools/browser-check.mjs dist
 import { chromium } from 'playwright-core';
@@ -82,6 +87,36 @@ async function launch() {
 const failures = [];
 const fail = (what) => failures.push(what);
 
+async function checkAccessibleNames(context, page, tag) {
+	// The browser's own accessibility tree, not the markup: names here are
+	// what assistive technology computes, after aria-label/aria-labelledby
+	// resolution, display:none, and every other rule of the accName spec.
+	const session = await context.newCDPSession(page);
+	await session.send('Accessibility.enable');
+	const { nodes } = await session.send('Accessibility.getFullAXTree');
+	const live = nodes.filter((n) => !n.ignored);
+	const describe = async (n) => {
+		try {
+			const { node } = await session.send('DOM.describeNode', { backendNodeId: n.backendDOMNodeId });
+			const attrs = [];
+			for (let i = 0; i < node.attributes.length; i += 2) {
+				attrs.push(`${node.attributes[i]}="${node.attributes[i + 1]}"`);
+			}
+			return `<${node.nodeName.toLowerCase()} ${attrs.join(' ')}>`;
+		} catch {
+			return `<${n.role?.value ?? '?'}>`;
+		}
+	};
+	for (const [role, what] of [
+		['link', 'link with an empty computed accessible name'],
+		['image', 'unhidden svg or image with an empty computed accessible name'],
+	]) {
+		const bad = live.filter((n) => n.role?.value === role && !(n.name?.value ?? '').trim());
+		for (const n of bad.slice(0, 3)) fail(`${tag} ${what}: ${await describe(n)}`);
+		if (bad.length > 3) fail(`${tag} ${bad.length - 3} more ${role} node(s) with empty computed names`);
+	}
+}
+
 async function checkPage(page, base, viewport) {
 	const tag = `[${viewport.name} ${viewport.width}x${viewport.height}]`;
 	for (const error of page.consoleErrors) fail(`${tag} console error: ${error}`);
@@ -90,11 +125,6 @@ async function checkPage(page, base, viewport) {
 	for (const bad of page.badResponses) fail(`${tag} HTTP ${bad}`);
 
 	const doc = await page.evaluate((sections) => {
-		const text = (el) => (el.textContent ?? '').trim();
-		const svgs = [...document.querySelectorAll('svg')].filter((svg) => {
-			if (svg.getAttribute('aria-hidden') === 'true') return false;
-			return !svg.getAttribute('aria-label') && !svg.getAttribute('aria-labelledby');
-		}).length;
 		const overflowing = sections
 			.map((sel) => document.querySelector(sel))
 			.filter(Boolean)
@@ -108,9 +138,6 @@ async function checkPage(page, base, viewport) {
 			header: document.querySelectorAll('header').length,
 			main: document.querySelectorAll('main').length,
 			footer: document.querySelectorAll('footer').length,
-			linksWithoutText: [...document.querySelectorAll('a')]
-				.filter((a) => !text(a) && !a.getAttribute('aria-label')).length,
-			svgsWithoutAlternative: svgs,
 			horizontalScrollbar: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
 			overflowingSections: overflowing,
 			hrefs: [...new Set([...document.querySelectorAll('a[href]')].map((a) => a.getAttribute('href')))],
@@ -124,8 +151,6 @@ async function checkPage(page, base, viewport) {
 	for (const landmark of ['header', 'main', 'footer']) {
 		if (doc[landmark] < 1) fail(`${tag} no <${landmark}> landmark`);
 	}
-	if (doc.linksWithoutText) fail(`${tag} ${doc.linksWithoutText} link(s) with no link text`);
-	if (doc.svgsWithoutAlternative) fail(`${tag} ${doc.svgsWithoutAlternative} svg(s) neither hidden nor labelled`);
 	if (doc.horizontalScrollbar) fail(`${tag} page has a horizontal scrollbar`);
 	if (doc.overflowingSections) fail(`${tag} ${doc.overflowingSections} section(s) extend past the viewport`);
 
@@ -176,6 +201,7 @@ async function main() {
 			page.on('response', (res) => res.status() >= 400 && page.badResponses.push(`${res.status()} ${res.url()}`));
 			await page.goto(base + '/', { waitUntil: 'load' });
 			const hrefs = await checkPage(page, base, viewport);
+			await checkAccessibleNames(context, page, `[${viewport.name} ${viewport.width}x${viewport.height}]`);
 			hrefs.forEach((h) => allHrefs.add(h));
 			await context.close();
 		}
