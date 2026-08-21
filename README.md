@@ -155,6 +155,16 @@ line up.
 
 ## Domain
 
-`src/layouts/Full.astro`, `public/robots.txt` and `public/sitemap.xml` assume
-`https://termcade.com`. If the site lands somewhere else, those three files are
-the only places the host appears.
+The marketing domain is `termca.de`, deployed on Vercel. The apex
+`https://termca.de` redirects with HTTP 308 to `https://www.termca.de/` — a
+redirect configured in the Vercel project's Domains settings, not in this
+repository — so the canonical technical URL is `https://www.termca.de/`. The
+application and registry are separate hosts (`app.termca.de`, `api.termca.de`)
+and are not touched by anything here.
+
+The host is set once, as `site` in `astro.config.mjs`; the canonical link,
+`og:url` and the SoftwareApplication JSON-LD in `src/layouts/Full.astro` all
+derive from `Astro.site`. `public/robots.txt` and `public/sitemap.xml` are
+copied as-is, so they carry the host literally. `tools/check_domain.py` checks
+every one of those claims in the built output — and that no `termcade.com`
+survives anywhere in `dist/` — and runs in CI.
