@@ -12,7 +12,11 @@ const {
 		'A terminal arcade in Go. Classic games drawn at sub-cell resolution with block pixels, shipped with Asteroid and Tetris, running every game as a sandboxed WebAssembly package — and the same binary is the dev kit for writing your own.',
 } = Astro.props;
 
-const canonical = new URL(Astro.url.pathname, 'https://termcade.com');
+// The host appears once, as `site` in astro.config.mjs; everything here
+// derives from it. Astro.site is that URL parsed, so a config change is the
+// only change a move ever needs.
+const site = Astro.site ?? new URL('https://www.termca.de');
+const canonical = new URL(Astro.url.pathname, site);
 
 // Two entries rather than one. The SoftwareApplication is the thing people are
 // being sent to install; the FAQPage is the questions this page actually
@@ -24,7 +28,7 @@ const structuredData = [
 		'@context': 'https://schema.org',
 		'@type': 'SoftwareApplication',
 		name: 'termcade',
-		url: 'https://termcade.com',
+		url: site.origin,
 		applicationCategory: 'GameApplication',
 		operatingSystem: 'Linux, macOS, Windows',
 		description,
