@@ -7,8 +7,11 @@ the four pixel styles look like, and how to write a game for it.
 There is no authentication, no application state, no backend and no runtime
 environment configuration — the arcade and its registry are the application,
 and this is only the front door. The page ships no JavaScript, which is why
-there are no integrations in `astro.config.mjs` and why CI fails on a
-`<script src>` in the build output.
+there are no integrations in `astro.config.mjs` and why CI rejects any
+executable `<script>` in the build output — external or inline, with only the
+`application/ld+json` metadata allowed — and then loads the built page in
+headless Chrome (1280×800 and 390×844, 10s link timeout, zero tolerated
+console or resource errors; the full list is in `tools/browser-check.mjs`).
 
 ## Commands
 
