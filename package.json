@@ -15,5 +15,8 @@
   "dependencies": {
     "@primer/octicons": "^19.29.2",
     "astro": "^5.18.1"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.62.1"
   }
 }
