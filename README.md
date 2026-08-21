@@ -53,9 +53,57 @@ What is in each one, and what a re-run would change:
   recently-played list is what lands on the page, Brickough included.
 - **`pixels-*.html`** — the same ship in the same cells, four times.
   Asteroid starts a wave with the ship dead centre, so these four are
-  reproducible and differ in nothing but how a cell is subdivided. They are set
-  at 28px on the page: the type is larger, rather than a small capture being
-  scaled up, so a pixel the arcade drew is still a pixel you see.
+  reproducible and differ in nothing but how a cell is subdivided. They are
+  trimmed to the ship's bounding box — the ship's absolute cell can wander by
+  one between runs, its shape cannot, and the trimmed margin was the same
+  black the page frames them on. They are set at 28px on the page: the type
+  is larger, rather than a small capture being scaled up, so a pixel the
+  arcade drew is still a pixel you see.
+
+## The capture contract
+
+A capture is only comparable to another capture when the inputs are fixed, so
+they are fixed in one place — the docstring of `tools/capture.py` — and
+summarised here:
+
+- **Binary**: the GitHub release pinned in `tools/termcade-release`
+  (currently v0.0.7), with the SHA-256 of the Linux x86_64 archive committed
+  in `tools/termcade-release.sha256` — CI verifies the download against that
+  hash, not against checksums hosted beside the release, so replacing release
+  assets cannot make CI run an unreviewed binary. `--check` verifies
+  `termcade version` against the pin. Bump both files deliberately,
+  regenerate, and review the diff.
+- **Terminal**: a pty of exactly 96 columns × 30 rows, `TERM=xterm-256color`,
+  `COLORTERM=truecolor`.
+- **Pixel mode**: `TERMCADE_PIXELS=quad` for the index and hero frames; each
+  style for its own crop.
+- **Timing**: a game is started from the library screen — every installed
+  game, sorted by title — by reading the screen and walking the selection to
+  the game's row. Not the index screen: its recent rows are the machine's
+  play history, empty on a fresh arcade, and not fixed keystrokes: a fixed
+  number of moves on a screen whose rows vary starts a different game on a
+  different machine. Keys after launch are typed on a fixed schedule from
+  the game's first screen; frames are taken only from full repaints (forced
+  by a pty resize); capture ends 1.0s after the last scripted event; a run
+  that never reaches the wave is retried rather than captured wrong.
+
+CI runs `python3 tools/capture.py --check` against the pinned release on every
+pull request. It regenerates the four `pixels-*.html` in an isolated, empty
+state directory and fails if they differ from what is checked in — those four
+are deterministic. It cannot do the same for the hero and the index screen:
+
+- **`asteroid.html`** is clock-seeded — `games/asteroid` reseeds on `Reset`,
+  so the rock field is different on every run no matter what is pinned.
+- **`index-screen.html`** is the capturing machine's library: recently-played
+  order and high scores are state, and no two machines share it.
+
+For those two, `--check` asserts structure only (the hero keeps its playfield
+border over the cleared canvas, the index keeps a selected row), and freshness
+is a review habit rather than a gate: when the arcade's menu, HUD or borders
+change, run a full capture against the new release, read the diff of
+`asteroid.html` and `index-screen.html` by eye — the rocks and the row order
+will move on every run and that is fine; anything else moving is the signal —
+and commit it with the release bump that caused it.
 
 ## What else is on the page, and where it came from
 
