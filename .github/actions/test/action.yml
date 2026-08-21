@@ -37,6 +37,14 @@ runs:
     - name: No executable scripts in the markup
       shell: bash
       run: python3 tools/check_scripts.py dist
+    # The host the site claims to be is a property of the build output, not of
+    # any one source file: the layout derives canonical/og:url/JSON-LD from
+    # `site` in astro.config.mjs while robots.txt and sitemap.xml are copied
+    # verbatim from public/. The gate reads dist/ and fails on any claim that
+    # is not https://www.termca.de, and on the old host appearing anywhere.
+    - name: Every host claim is www.termca.de
+      shell: bash
+      run: python3 tools/check_domain.py dist
     # A page that builds can still be broken in a browser. This loads the
     # built site in headless Chrome -- preinstalled on the runner, so there is
     # no browser download -- and fails on console errors, uncaught exceptions,
