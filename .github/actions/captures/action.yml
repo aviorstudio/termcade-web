@@ -13,18 +13,20 @@ description: >
 runs:
   using: composite
   steps:
-    # The pin is one line in one file so bumping it is one diff, here and for
-    # anyone capturing locally. The archive is verified against the release's
-    # own checksums before it is run.
+    # The pin is two one-line files: the release tag (what to download) and
+    # the SHA-256 of the Linux x86_64 archive (what it must hash to). The
+    # hash is committed here, in reviewable history -- verifying against the
+    # release's own checksums.txt would let anyone who can replace release
+    # assets replace the checksum too, and CI would run an unreviewed binary.
+    # Bumping the pin means changing both files in one reviewed diff.
     - name: Download the pinned termcade release
       shell: bash
       run: |
         tag=$(cat tools/termcade-release)
         base="https://github.com/aviorstudio/termcade/releases/download/$tag"
         curl -fsSL "$base/termcade_Linux_x86_64.tar.gz" -o /tmp/termcade_Linux_x86_64.tar.gz
-        curl -fsSL "$base/checksums.txt" -o /tmp/checksums.txt
-        cd /tmp && sha256sum -c checksums.txt --ignore-missing
-        tar -xzf termcade_Linux_x86_64.tar.gz termcade
+        (cd /tmp && sha256sum -c "$GITHUB_WORKSPACE/tools/termcade-release.sha256")
+        tar -xzf /tmp/termcade_Linux_x86_64.tar.gz -C /tmp termcade
     - name: The checked-in captures are fresh
       shell: bash
       run: python3 tools/capture.py --check /tmp/termcade

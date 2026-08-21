@@ -14,7 +14,10 @@ of this holds, so it is written down once, here, and enforced by --check:
 
 - binary: the GitHub release pinned in tools/termcade-release, nothing else.
   --check verifies `termcade version` against it; a full run warns on anything
-  else. Bump the pin deliberately, regenerate, and review the diff.
+  else. CI verifies the downloaded archive against the SHA-256 committed in
+  tools/termcade-release.sha256 — the release's own checksums sit beside the
+  assets and could be replaced with them. Bump the pin deliberately,
+  regenerate, and review the diff.
 - terminal: a pty of exactly 96 columns x 30 rows (ROWS, COLS below), with
   TERM=xterm-256color and COLORTERM=truecolor.
 - pixel mode: TERMCADE_PIXELS=quad for the index and hero frames; each style
@@ -63,6 +66,7 @@ import sys
 import tempfile
 import termios
 import time
+from html.parser import HTMLParser
 
 ROWS, COLS = 30, 96
 ATTEMPTS = 3
@@ -100,12 +104,12 @@ def drive(binary, script, pixels):
     the window and puts it back, which is what makes the shell repaint in full.
     """
     pid, fd = fork(binary, pixels)
-    out = bytearray()
-    play(fd, pid, script, out)
-    os.kill(pid, signal.SIGKILL)
-    os.waitpid(pid, 0)
-    os.close(fd)
-    return out.decode('utf-8', 'replace')
+    try:
+        out = bytearray()
+        play(fd, pid, script, out)
+        return out.decode('utf-8', 'replace')
+    finally:
+        reap(pid, fd)
 
 
 def drive_game(binary, game, script, pixels):
@@ -113,60 +117,72 @@ def drive_game(binary, game, script, pixels):
     it — then play `script`, timed in seconds from the game's first screen,
     and keep everything the arcade said from the first menu paint onward."""
     pid, fd = fork(binary, pixels)
-    out = read_menu(fd, game)
-    if out is None:
-        os.kill(pid, signal.SIGKILL)
-        os.waitpid(pid, 0)
-        os.close(fd)
-        raise LaunchError(f'the library screen never listed {game} — '
-                          'the arcade is slower than the capture contract '
-                          'allows')
-    rows = [''.join(ch for ch, _, _, _ in row)
-            for row in replay(out.decode('utf-8', 'replace'))]
-    selected = next((i for i, r in enumerate(rows) if '▸' in r), None)
-    target = next((i for i, r in enumerate(rows) if game in r), None)
-    if selected is None or target is None:
-        os.kill(pid, signal.SIGKILL)
-        os.waitpid(pid, 0)
-        os.close(fd)
-        raise LaunchError(f'the library screen has no row for {game} — '
-                          'is this the pinned release?')
-    moves = target - selected
-    os.write(fd, (b'j' if moves > 0 else b'k') * abs(moves))
-    # Wait until the selection actually sits on the game's row before
-    # committing to it — a busy runner can take a moment per move, and an
-    # Enter against a selection that has not landed starts the wrong game.
-    deadline = time.time() + 5.0
-    while time.time() < deadline:
-        if not select.select([fd], [], [], 0.05)[0]:
-            continue
-        try:
-            chunk = os.read(fd, 65536)
-        except OSError:
-            break
-        if not chunk:
-            break
-        out += chunk
+    try:
+        out = read_menu(fd, game)
+        if out is None:
+            raise LaunchError(f'the library screen never listed {game} — '
+                              'the arcade is slower than the capture contract '
+                              'allows')
         rows = [''.join(ch for ch, _, _, _ in row)
                 for row in replay(out.decode('utf-8', 'replace'))]
-        if target < len(rows) and '▸' in rows[target]:
-            break
-    os.write(fd, b'\r')
-    play(fd, pid, script, out)
-    os.kill(pid, signal.SIGKILL)
-    os.waitpid(pid, 0)
-    os.close(fd)
-    text = out.decode('utf-8', 'replace')
-    # The menu alone contains the name, so check the settled final screen:
-    # the game is up when its name is on a screen with the canvas's black
-    # behind it — the menu never paints a background.
-    cells = replay(text)
-    final = '\n'.join(''.join(ch for ch, _, _, _ in row) for row in cells)
-    has_canvas = any(bg == (0, 0, 0) for row in cells for _, _, bg, _ in row)
-    if not (has_canvas and game in final):
-        raise LaunchError(f'{game} did not start — the keys reached the '
-                          'arcade but the game screen never came up')
-    return text
+        selected = next((i for i, r in enumerate(rows) if '▸' in r), None)
+        target = next((i for i, r in enumerate(rows) if game in r), None)
+        if selected is None or target is None:
+            raise LaunchError(f'the library screen has no row for {game} — '
+                              'is this the pinned release?')
+        moves = target - selected
+        os.write(fd, (b'j' if moves > 0 else b'k') * abs(moves))
+        # Wait until the selection actually sits on the game's row before
+        # committing to it — a busy runner can take a moment per move, and an
+        # Enter against a selection that has not landed starts the wrong game.
+        deadline = time.time() + 5.0
+        while time.time() < deadline:
+            if not select.select([fd], [], [], 0.05)[0]:
+                continue
+            try:
+                chunk = os.read(fd, 65536)
+            except OSError:
+                break
+            if not chunk:
+                break
+            out += chunk
+            rows = [''.join(ch for ch, _, _, _ in row)
+                    for row in replay(out.decode('utf-8', 'replace'))]
+            if target < len(rows) and '▸' in rows[target]:
+                break
+        os.write(fd, b'\r')
+        play(fd, pid, script, out)
+        text = out.decode('utf-8', 'replace')
+        # The menu alone contains the name, so check the settled final screen:
+        # the game is up when its name is on a screen with the canvas's black
+        # behind it — the menu never paints a background.
+        screen = replay(text)
+        final = '\n'.join(''.join(ch for ch, _, _, _ in row) for row in screen)
+        has_canvas = any(bg == (0, 0, 0) for row in screen for _, _, bg, _ in row)
+        if not (has_canvas and game in final):
+            raise LaunchError(f'{game} did not start — the keys reached the '
+                              'arcade but the game screen never came up')
+        return text
+    finally:
+        reap(pid, fd)
+
+
+def reap(pid, fd):
+    """Kill the arcade and close its pty, however the capture ended. Every
+    path through drive/drive_game — clean, LaunchError, an interrupted read,
+    a Ctrl-C — owes the runner no leftover process and no open fd."""
+    try:
+        os.kill(pid, signal.SIGKILL)
+    except ProcessLookupError:
+        pass
+    try:
+        os.waitpid(pid, 0)
+    except ChildProcessError:
+        pass
+    try:
+        os.close(fd)
+    except OSError:
+        pass
 
 
 def fork(binary, pixels):
@@ -479,6 +495,120 @@ def wave_frame(binary, script, style):
              'the arcade started slower than the capture contract allows')
 
 
+# --- structural assertions for the nondeterministic frames ------------------
+
+class FrameHTML(HTMLParser):
+    """Parse a frame file back into rows of (text, frozenset(classes)) spans.
+    Only understands what to_html emits: <span class="...">escaped text</span>
+    runs and bare text."""
+
+    def __init__(self):
+        super().__init__()
+        self.rows = [[]]
+        self.classes = frozenset()
+
+    def handle_starttag(self, tag, attrs):
+        if tag == 'span':
+            self.classes = frozenset(dict(attrs).get('class', '').split())
+
+    def handle_data(self, data):
+        for i, line in enumerate(data.split('\n')):
+            if i:
+                self.rows.append([])
+            if line:
+                self.rows[-1].append((line, self.classes))
+
+    def handle_endtag(self, tag):
+        if tag == 'span':
+            self.classes = frozenset()
+
+
+def parse_frame(path):
+    with open(path) as f:
+        parser = FrameHTML()
+        parser.feed(f.read())
+    return parser.rows
+
+
+def cells(row):
+    return [(ch, classes) for text, classes in row for ch in text]
+
+
+def row_text(row):
+    return ''.join(text for text, _ in row)
+
+
+def check_asteroid(rows):
+    """The hero frame, seed-independent: a HUD title row, a rectangular
+    playfield border of the arcade's edge style with the canvas painted
+    edge-to-edge inside it, and the score/hint row below. A truncated file
+    loses the bottom border; an unrelated fragment has no rectangle at all."""
+    problems = []
+    texts = [row_text(r) for r in rows]
+    if not any(classes >= {'pick', 'b'} and text.strip() == 'ASTEROID'
+               for text, classes in rows[0]):
+        problems.append('title row has no pick-styled ASTEROID')
+    if 'HIGH' not in texts[0]:
+        problems.append('title row has no HIGH score')
+    top = next((i for i, t in enumerate(texts)
+                if re.fullmatch(r'\s*╭─+╮\s*', t)), None)
+    bottom = next((i for i, t in enumerate(texts)
+                   if re.fullmatch(r'\s*╰─+╯\s*', t)), None)
+    if top is None or bottom is None or bottom <= top:
+        problems.append('no rectangular playfield border (╭─╮ top, ╰─╯ bottom)')
+        return problems
+    width = len(texts[top].strip())
+    if texts[top].count('─') != texts[bottom].count('─'):
+        problems.append('top and bottom playfield borders differ in width')
+    for i in range(top + 1, bottom):
+        cs = [(ch, c) for ch, c in cells(rows[i]) if ch != ' ' or c]
+        line = texts[i].strip()
+        if len(line) != width:
+            problems.append(f'playfield row {i + 1} is wider or narrower than the border')
+            continue
+        if not (cs[0][0] == '│' and 'edge' in cs[0][1]):
+            problems.append(f'playfield row {i + 1} does not start with the edge border')
+        if not (cs[-1][0] == '│' and 'edge' in cs[-1][1]):
+            problems.append(f'playfield row {i + 1} does not end with the edge border')
+        unpainted = [ch for ch, c in cs[1:-1] if 'void' not in c]
+        if unpainted:
+            problems.append(f'playfield row {i + 1} has cells without the painted canvas')
+    last = next((t for t in reversed(texts) if t.strip()), '')
+    for want in ('SCORE', 'WAVE', 'fire'):
+        if want not in last:
+            problems.append(f'score row is missing {want!r}')
+    return problems
+
+
+def check_index_screen(rows):
+    """The index screen, history-independent: the three-row wordmark in the
+    logo style, exactly one selection marker on exactly one selected row, the
+    library action, and the controls hint at the bottom."""
+    problems = []
+    texts = [row_text(r) for r in rows]
+    logo = [i for i, r in enumerate(rows)
+            if any({'logo', 'b'} <= c and ('██' in t or '▄▄' in t)
+                   for t, c in r)]
+    if len(logo) != 3 or logo != list(range(logo[0], logo[0] + len(logo))):
+        problems.append('the wordmark is not three consecutive logo rows')
+    markers = [i for i, t in enumerate(texts) if '▸' in t]
+    if len(markers) != 1:
+        problems.append(f'expected exactly one selection marker, found {len(markers)}')
+    else:
+        row = rows[markers[0]]
+        if not any('pick' in c and t.startswith('▸')
+                   for t, c in row):
+            problems.append('the selection marker is not on a pick-styled row')
+    if sum(t.count('▸') for t in texts) != len(markers):
+        problems.append('a row carries more than one selection marker')
+    if not any(t.strip() == '→ LIBRARY' for t in texts):
+        problems.append('no → LIBRARY action row')
+    hint = next((t for t in reversed(texts) if t.strip()), '')
+    if 'select' not in hint or 'enter' not in hint:
+        problems.append('the bottom row is not the controls hint')
+    return problems
+
+
 # --- the freshness gate ----------------------------------------------------
 
 def expected_release():
@@ -538,24 +668,21 @@ def check(binary):
 
     # The clock-seeded hero and the machine-state index screen cannot be
     # compared exactly. What can be asserted is that they are the screens they
-    # claim to be: the hero has the playfield border over the cleared canvas,
-    # the index has a selected row.
-    structure = {
-        'asteroid.html': ['class="edge"', 'void'],
-        'index-screen.html': ['class="pick b"'],
-    }
-    for name, needles in structure.items():
-        try:
-            with open(os.path.join(FRAMES, name)) as f:
-                text = f.read()
-        except FileNotFoundError:
+    # claim to be, structurally: the hero keeps its HUD, its rectangular
+    # playfield border and its fully painted canvas; the index keeps its
+    # wordmark, exactly one selected row, the library action and the hint.
+    for name, examine in (('asteroid.html', check_asteroid),
+                          ('index-screen.html', check_index_screen)):
+        path = os.path.join(FRAMES, name)
+        if not os.path.exists(path):
             sys.exit(f'{name}: missing — regenerate with '
                      '`python3 tools/capture.py <binary>`')
-        for needle in needles:
-            if needle not in text:
-                sys.exit(f'{name}: missing {needle!r} — the capture is not '
-                         'the screen it claims to be; regenerate with '
-                         '`python3 tools/capture.py <binary>`')
+        problems = examine(parse_frame(path))
+        if problems:
+            sys.exit(f'{name}: not the screen it claims to be — '
+                     + '; '.join(problems)
+                     + '. Regenerate with `python3 tools/capture.py <binary>` '
+                     'and review the diff')
     print('captures are fresh: pixels-*.html match the pinned release '
           f'{tag} byte for byte; asteroid.html and index-screen.html have '
           'their expected structure', file=sys.stderr)
