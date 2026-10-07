@@ -1,65 +1,8 @@
 name: Test
-description: >
-  Is this commit good. Nothing is published here; a failure means the site is
-  wrong, not that the pipeline is.
-
-  Runs AFTER ../build, because everything it asserts is a property of ./dist. A
-  static site has two ways to be broken that matter -- it did not build, and it
-  built the wrong thing -- and only the second one needs a test.
-
-  The assertions are this site's own and differ from its siblings': how many
-  pages it emits, and what else has to be on them. That is the part worth
-  keeping per-repo.
-
+description: Canonical static-site test gate
 runs:
   using: composite
   steps:
-    # A build that emits nothing still "succeeds", so the artefact is checked
-    # rather than the exit code.
-    - name: The page was actually written
+    - name: Test
       shell: bash
-      run: test -s dist/index.html
-    # The point of this site is that it ships no JavaScript. Nothing else
-    # would notice an integration being added back, and by then the page has
-    # a runtime it did not need. Two gates, because each sees what the other
-    # cannot: the find catches a script file nothing references, and
-    # check_scripts.py catches markup -- any <script src>, and any inline
-    # <script> whose type is not application/ld+json (the structured metadata
-    # in the layout is data, and stays allowed).
-    - name: No JavaScript was shipped
-      shell: bash
-      run: |
-        if find dist -name '*.js' | grep -q .; then
-          echo "::error::dist contains JavaScript -- this site is meant to ship none"
-          find dist -name '*.js'
-          exit 1
-        fi
-    - name: No executable scripts in the markup
-      shell: bash
-      run: python3 tools/check_scripts.py dist
-    # The host the site claims to be is a property of the build output, not of
-    # any one source file: the layout derives canonical/og:url/JSON-LD from
-    # `site` in astro.config.mjs while robots.txt and sitemap.xml are copied
-    # verbatim from public/. The gate reads dist/ and fails on any claim that
-    # is not https://www.termca.de, and on the old host appearing anywhere.
-    - name: Every host claim is www.termca.de
-      shell: bash
-      run: python3 tools/check_domain.py dist
-    # A page that builds can still be broken in a browser. This loads the
-    # built site in headless Chrome -- preinstalled on the runner, so there is
-    # no browser download -- and fails on console errors, uncaught exceptions,
-    # failed or >=400 requests, missing landmarks, unlabelled links or SVGs,
-    # horizontal overflow, and broken links. The exact parameters are written
-    # in tools/browser-check.mjs: viewports 1280x800 and 390x844, external
-    # link timeout 10000ms, zero tolerance for errors.
-    - name: The page works in a browser
-      shell: bash
-      run: node tools/browser-check.mjs dist
-    # The frames are the page. They are pasted-in captures, and a build that
-    # dropped them would still look like a working site until someone read it.
-    - name: The captures made it onto the page
-      shell: bash
-      run: |
-        for want in 'class="logo b"' 'class="on void"' 'ASTEROID'; do
-          grep -qF "$want" dist/index.html || { echo "missing from dist/index.html: $want"; exit 1; }
-        done
+      run: make test

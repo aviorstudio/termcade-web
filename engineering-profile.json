@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "profile": "static-website",
+  "commands": {
+    "install": [
+      "make",
+      "install"
+    ],
+    "lint": {
+      "unsupported": "This caller has no source linter or type-check gate configured; build and all output assertions remain mandatory."
+    },
+    "test": [
+      "make",
+      "test"
+    ],
+    "build": [
+      "make",
+      "build"
+    ],
+    "check": [
+      "make",
+      "check"
+    ],
+    "dev": [
+      "make",
+      "dev"
+    ],
+    "clean": [
+      "make",
+      "clean"
+    ],
+    "stop": {
+      "unsupported": "Development server stays in the foreground; use Ctrl-C in its terminal"
+    }
+  }
+}

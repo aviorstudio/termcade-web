@@ -171,3 +171,7 @@ survives anywhere in `dist/` — and runs in CI.
 ## Current navigation
 
 The arcade opens on Marketplace. Ctrl+N opens the sidebar; Library includes installed games even while signed out. Add saves account membership, and Play downloads and installs. The landing page’s browser CTA links to [app.termca.de](https://app.termca.de).
+
+## Standard developer commands
+
+Use `mise install` for the pinned toolchain. `mise exec -- make check` installs frozen dependencies, builds the static site and runs every existing output assertion. `make test` checks an existing build. No source lint or type-check gate is configured, so that profile capability is explicitly unsupported. `make dev` runs in the foreground; stop with Ctrl-C. `make clean` removes generated output.
