@@ -17,9 +17,9 @@
    would be a picture of something else. */
 :root {
 	--void: #000;
-	--ink: #0b0e10;
+	--ink: #1b1725;
 	--raised: #12171a;
-	--line: #1e262b;
+	--line: #51405a;
 	--line-soft: #171d21;
 	--logo: #3fc4c9;
 	--pick: #e6c945;
@@ -39,13 +39,44 @@
 	color-scheme: dark;
 }
 
-* { box-sizing: border-box; }
-html { scroll-behavior: smooth; background: var(--ink); }
-body { min-width: 320px; min-height: 100svh; margin: 0; background: var(--ink); text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; }
-button, input, textarea, select { font: inherit; }
-img { max-width: 100%; height: auto; }
-::selection { background: var(--logo); color: var(--void); }
-@media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+* {
+	box-sizing: border-box;
+}
+html {
+	scroll-behavior: smooth;
+	background: var(--ink);
+}
+body {
+	min-width: 320px;
+	min-height: 100svh;
+	margin: 0;
+	background: var(--ink);
+	text-rendering: optimizeLegibility;
+	-webkit-font-smoothing: antialiased;
+}
+button,
+input,
+textarea,
+select {
+	font: inherit;
+}
+img {
+	max-width: 100%;
+	height: auto;
+}
+::selection {
+	background: var(--logo);
+	color: var(--void);
+}
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		scroll-behavior: auto !important;
+		animation-duration: 0.01ms !important;
+		transition-duration: 0.01ms !important;
+	}
+}
 
 /* The frames. Every <pre> on this page is a real capture replayed cell for
    cell, so these classes are a one-for-one map of the ANSI the arcade emitted:
@@ -54,20 +85,59 @@ img { max-width: 100%; height: auto; }
    whole cell has no half-block to draw), and .void for the black the canvas
    clears to. They live here rather than in a component's scoped block because
    the spans arrive through set:html, which Astro's scoping never reaches. */
-.void { background: var(--void); }
-.logo { color: var(--logo); }
-.pick { color: var(--pick); }
-.on { color: var(--on); }
-.dim { color: #8a8a8a; }
-.edge { color: var(--edge); }
-.green { color: var(--green); }
-.blue { color: var(--blue); }
-.fill-logo { background: var(--logo); }
-.fill-pick { background: var(--pick); }
-.fill-on { background: var(--on); }
-.b { font-weight: 700; }
+.void {
+	background: var(--void);
+}
+.logo {
+	color: var(--logo);
+}
+.pick {
+	color: var(--pick);
+}
+.on {
+	color: var(--on);
+}
+.dim {
+	color: #8a8a8a;
+}
+.edge {
+	color: var(--edge);
+}
+.green {
+	color: var(--green);
+}
+.blue {
+	color: var(--blue);
+}
+.fill-logo {
+	background: var(--logo);
+}
+.fill-pick {
+	background: var(--pick);
+}
+.fill-on {
+	background: var(--on);
+}
+.b {
+	font-weight: 700;
+}
 
-a:focus-visible, summary:focus-visible { outline: 3px solid currentColor; outline-offset: 5px; }
+a:focus-visible,
+summary:focus-visible {
+	outline: 3px solid currentColor;
+	outline-offset: 5px;
+}
 
-.skip-link { position: fixed; top: 12px; left: 12px; z-index: 100; padding: 12px 18px; background: #fff; color: #111; transform: translateY(-160%); }
-.skip-link:focus { transform: translateY(0); }
+.skip-link {
+	position: fixed;
+	top: 12px;
+	left: 12px;
+	z-index: 100;
+	padding: 12px 18px;
+	background: #fff;
+	color: #111;
+	transform: translateY(-160%);
+}
+.skip-link:focus {
+	transform: translateY(0);
+}
