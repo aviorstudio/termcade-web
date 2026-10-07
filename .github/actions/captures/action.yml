@@ -13,6 +13,9 @@ description: >
 runs:
   using: composite
   steps:
+    - name: Capture timing regression checks
+      shell: bash
+      run: python3 -m unittest discover -s tools -p test_capture.py
     # The pin is two one-line files: the release tag (what to download) and
     # the SHA-256 of the Linux x86_64 archive (what it must hash to). The
     # hash is committed here, in reviewable history -- verifying against the

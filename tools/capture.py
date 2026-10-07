@@ -40,7 +40,12 @@ of this holds, so it is written down once, here, and enforced by --check:
   for 150ms. A run that never reaches the wave is retried (ATTEMPTS) rather
   than captured wrong.
 
-WHAT --check GATES. The four pixels-*.html crops are deterministic in shape:
+WHAT --check GATES. Pixel-style captures wait for a complete game screen with
+SCORE/WAVE and a visible white ship, bounded to 30s per launch. They crop to the
+ship's white bounds and reject a clock-seeded rock crossing those bounds. The
+initial invulnerability blink cannot select an empty capture. The timing and
+resize script above still applies to the nondeterministic hero/index frames.
+The four pixels-*.html crops are deterministic in shape:
 Asteroid starts every wave with the ship dead centre and untouched, so a
 re-run of the pinned binary draws the same ship in the same pixels. Its
 absolute cell can wander by one between runs (sub-cell spawn rounding), so the
@@ -54,6 +59,7 @@ describes how they are reviewed and refreshed. --check runs against an
 isolated, empty state directory, because a fresh arcade is the only
 reproducible one.
 """
+import difflib
 import fcntl
 import os
 import pty
@@ -112,7 +118,7 @@ def drive(binary, script, pixels):
         reap(pid, fd)
 
 
-def drive_game(binary, game, script, pixels):
+def drive_game(binary, game, script, pixels, *, ship_frame=False):
     """Start `game` from the library — wherever the library happens to list
     it — then play `script`, timed in seconds from the game's first screen,
     and keep everything the arcade said from the first menu paint onward."""
@@ -151,6 +157,8 @@ def drive_game(binary, game, script, pixels):
             if target < len(rows) and '▸' in rows[target]:
                 break
         os.write(fd, b'\r')
+        if ship_frame:
+            return read_ship_frame(fd, game, out)
         play(fd, pid, script, out)
         text = out.decode('utf-8', 'replace')
         # The menu alone contains the name, so check the settled final screen:
@@ -165,6 +173,52 @@ def drive_game(binary, game, script, pixels):
         return text
     finally:
         reap(pid, fd)
+
+
+
+def ship_crop(screen):
+    """The white ship's bounds, excluding clock-seeded rocks and blank blinks."""
+    crop = [row[42:56] for row in screen[12:18]]
+    white = (242, 242, 242)
+    points = [(r, c) for r, row in enumerate(crop) for c, (_, fg, bg, _) in enumerate(row)
+              if fg == white or bg == white]
+    if not points:
+        return None
+    top, bottom = min(r for r, _ in points), max(r for r, _ in points)
+    left, right = min(c for _, c in points), max(c for _, c in points)
+    frame = [row[left:right + 1] for row in crop[top:bottom + 1]]
+    # A rock crossing these cells is not part of the ship's deterministic bitmap.
+    if any(fg not in (None, white, (0, 0, 0)) or bg not in (None, white, (0, 0, 0))
+           for row in frame for _, fg, bg, _ in row):
+        return None
+    return frame
+
+
+def read_ship_frame(fd, game, out, limit=30.0):
+    """Wait for a complete game paint with a visible ship, not a timed blink.
+
+    The pinned game blinks every four ticks during its initial invulnerability.
+    A fixed wall-clock sample can therefore be empty on a faster runner.
+    The first intact visible ship is content; the tick it arrives on is not.
+    """
+    deadline = time.monotonic() + limit
+    while time.monotonic() < deadline:
+        screen = replay(out.decode('utf-8', 'replace'))
+        rows = [''.join(ch for ch, _, _, _ in row) for row in screen]
+        if (any(game in row for row in rows) and any('SCORE' in row and 'WAVE' in row for row in rows)
+                and any(bg == (0, 0, 0) for row in screen for _, _, bg, _ in row)
+                and ship_crop(screen) is not None):
+            return out.decode('utf-8', 'replace')
+        if not select.select([fd], [], [], 0.02)[0]:
+            continue
+        try:
+            chunk = os.read(fd, 65536)
+        except OSError:
+            break
+        if not chunk:
+            break
+        out += chunk
+    raise LaunchError(f'{game} produced no complete visible ship frame within {limit}s')
 
 
 def reap(pid, fd):
@@ -462,37 +516,25 @@ def main(binary):
 
 
 def pixels_frames(binary):
-    """The ship, in each pixel style, from the same cells of the same screen:
-    Asteroid puts the ship dead centre at the start of a wave, so four runs
-    differ in nothing but how a cell is cut up. These four are the
-    deterministic captures --check compares byte for byte."""
-    # 0.6s after the game's first screen the wave is drawn and nothing has
-    # had time to drift into the centre, which is where the crop is taken.
-    start = [(0.6, 'RESIZE')]
+    """Capture each style on its first complete visible ship paint.
+
+    Ship shape is deterministic; its invulnerability blink and the rocks are
+    driven by simulation ticks. Do not use runner speed to select that content.
+    """
     for style in ('quad', 'sextant', 'half', 'ascii'):
-        yield style, wave_frame(binary, start, style)
+        yield style, wave_frame(binary, style)
 
 
-def wave_frame(binary, script, style):
-    """The last wave-start repaint of one run, cropped to the cells around the
-    ship. A repaint of the library screen is still a repaint, and a slow start
-    can leave the run short of the wave: only a crop with the canvas's black
-    behind it is a game frame (the library never paints a background), and a
-    run that produced none is retried rather than captured wrong."""
+def wave_frame(binary, style):
+    """Keep the exact bitmap comparison, retrying only a failed game launch."""
     for attempt in range(1, ATTEMPTS + 1):
         try:
-            frames = repaints(drive_game(binary, 'ASTEROID', script, style))
+            data = drive_game(binary, 'ASTEROID', [], style, ship_frame=True)
         except LaunchError as e:
             print(f'{style}: attempt {attempt}/{ATTEMPTS}: {e}', file=sys.stderr)
             continue
-        crops = [[row[42:56] for row in frame[12:18]] for frame in frames]
-        drawn = [c for c in crops
-                 if any(bg == (0, 0, 0) for row in c for _, _, bg, _ in row)]
-        if drawn:
-            return drawn[-1]
-        print(f'{style}: attempt {attempt}/{ATTEMPTS} never reached the wave', file=sys.stderr)
-    sys.exit(f'{style}: no wave frame in {ATTEMPTS} attempts — '
-             'the arcade started slower than the capture contract allows')
+        return ship_crop(replay(data))
+    sys.exit(f'{style}: no visible ship frame in {ATTEMPTS} attempts')
 
 
 # --- structural assertions for the nondeterministic frames ------------------
@@ -657,8 +699,13 @@ def check(binary):
         name = f'pixels-{style}.html'
         try:
             with open(os.path.join(FRAMES, name)) as f:
-                if f.read() != text:
+                committed = f.read()
+                if committed != text:
                     stale.append(name)
+                    print(''.join(difflib.unified_diff(
+                        committed.splitlines(keepends=True), text.splitlines(keepends=True),
+                        fromfile='checked-in/' + name, tofile='generated/' + name)),
+                        file=sys.stderr)
         except FileNotFoundError:
             stale.append(name + ' (missing)')
     if stale:
