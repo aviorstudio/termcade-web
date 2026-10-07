@@ -54,6 +54,7 @@ describes how they are reviewed and refreshed. --check runs against an
 isolated, empty state directory, because a fresh arcade is the only
 reproducible one.
 """
+import difflib
 import fcntl
 import os
 import pty
@@ -657,8 +658,13 @@ def check(binary):
         name = f'pixels-{style}.html'
         try:
             with open(os.path.join(FRAMES, name)) as f:
-                if f.read() != text:
+                committed = f.read()
+                if committed != text:
                     stale.append(name)
+                    print(''.join(difflib.unified_diff(
+                        committed.splitlines(keepends=True), text.splitlines(keepends=True),
+                        fromfile='checked-in/' + name, tofile='generated/' + name)),
+                        file=sys.stderr)
         except FileNotFoundError:
             stale.append(name + ' (missing)')
     if stale:
