@@ -9,7 +9,7 @@ interface Props {
 const {
 	title = 'termcade — an arcade in your terminal',
 	description =
-		'A terminal arcade in Go. Classic games drawn at sub-cell resolution with block pixels, shipped with Asteroid and Tetris, running every game as a sandboxed WebAssembly package — and the same binary is the dev kit for writing your own.',
+		'A terminal arcade in Go. Classic games drawn at sub-cell resolution with block pixels, shipped with Asteroid, Tetris and Brickough, running every game as a sandboxed WebAssembly package — and the same binary is the dev kit for writing your own.',
 } = Astro.props;
 
 // The host appears once, as `site` in astro.config.mjs; everything here
@@ -44,7 +44,7 @@ const structuredData = [
 				acceptedAnswer: {
 					'@type': 'Answer',
 					text:
-						'An arcade that runs in a terminal. It draws its games at sub-cell resolution using Unicode block elements, so one terminal cell becomes a 2x2 or 2x3 grid of pixels, and it ships with two games — Asteroid and Tetris — playable offline as soon as it starts.',
+						'An arcade that runs in a terminal. It draws its games at sub-cell resolution using Unicode block elements, so one terminal cell becomes a 2x2 or 2x3 grid of pixels, and it ships with three games — Asteroid, Tetris and Brickough — playable offline as soon as it starts.',
 				},
 			},
 			{
@@ -71,7 +71,7 @@ const structuredData = [
 				acceptedAnswer: {
 					'@type': 'Answer',
 					text:
-						'Yes — the arcade is the whole dev kit. termcade dev new scaffolds a playable game, termcade dev build packages it into a .tcade file, and termcade add installs it. A game is a Go package implementing the sdk.Game contract: fixed 60-tick-per-second updates, a seven-key input vocabulary, a structured HUD, and drawing onto a canvas in square logical units.',
+						'Yes — the arcade is the whole dev kit. termcade dev new scaffolds a playable game, termcade dev build packages it into a .tcade file, and termcade dev install installs the local package. A game is a Go package implementing the sdk.Game contract: fixed 60-tick-per-second updates, a seven-key input vocabulary, a structured HUD, and drawing onto a canvas in square logical units.',
 				},
 			},
 		],
@@ -101,5 +101,5 @@ const structuredData = [
 		<title>{title}</title>
 		<script type="application/ld+json" set:html={JSON.stringify(structuredData)} />
 	</head>
-	<body><slot /></body>
+	<body><a class="skip-link" href="#main-content">Skip to content</a><slot /></body>
 </html>

@@ -1,8 +1,7 @@
 # termcade web
 
 The public site for [termcade](https://github.com/aviorstudio/termcade), the
-terminal arcade. One static Astro page: what it is, what it comes with, what
-the four pixel styles look like, and how to write a game for it.
+terminal arcade. One static Astro page: what it is, its three bundled games, what the four pixel styles look like, and how to write a game for it.
 
 There is no authentication, no application state, no backend and no runtime
 environment configuration — the arcade and its registry are the application,
@@ -52,7 +51,7 @@ What is in each one, and what a re-run would change:
   has been shot at. The rocks are seeded from the clock (`games/asteroid`
   reseeds on `Reset`), so a re-run gets a different field. The HUD, the border,
   the controls hint and the high score are the arcade's own.
-- **`index-screen.html`** — the arcade's index. Whatever is in the machine's
+- **`index-screen.html`** — the arcade's index from an earlier release, labelled on the page. Current releases open on Marketplace. Whatever is in the machine's
   recently-played list is what lands on the page, Brickough included.
 - **`pixels-*.html`** — the same ship in the same cells, four times.
   Asteroid starts a wave with the ship dead centre, so these four are
@@ -168,3 +167,7 @@ derive from `Astro.site`. `public/robots.txt` and `public/sitemap.xml` are
 copied as-is, so they carry the host literally. `tools/check_domain.py` checks
 every one of those claims in the built output — and that no `termcade.com`
 survives anywhere in `dist/` — and runs in CI.
+
+## Current navigation
+
+The arcade opens on Marketplace. Ctrl+N opens the sidebar; Library includes installed games even while signed out. Add saves account membership, and Play downloads and installs. The landing page’s browser CTA links to [app.termca.de](https://app.termca.de).
