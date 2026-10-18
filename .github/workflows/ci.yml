@@ -40,7 +40,7 @@ jobs:
       # version, and two places drift.
       - name: Record tested integration identity
         if: github.event_name == 'pull_request'
-        uses: nicodes/tools/integration-identity@ca747e13a51f301f51635c262d883d57d6084ae3 # v0.27.1
+        uses: nicodes/tools/integration-identity@247267492cd455647facafcfcc6eed4c63c49c0e # v0.27.2
         env:
           EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
       - name: Upload artifacts
@@ -55,7 +55,7 @@ jobs:
         uses: jdx/mise-action@08ae2a091c038e1e05ec6f5115dc5c69d5a2a6b8 # v5.1.2
 
       - name: "Validate workflow standards"
-        uses: nicodes/tools/workflow-standards@ca747e13a51f301f51635c262d883d57d6084ae3 # v0.27.1
+        uses: nicodes/tools/workflow-standards@247267492cd455647facafcfcc6eed4c63c49c0e # v0.27.2
 
       - name: Build
         uses: ./.github/actions/build
