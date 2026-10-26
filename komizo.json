@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "recipe": "static-site",
+  "repository": "aviorstudio/termcade-web",
+  "stages": {
+    "unit": [
+      [
+        "python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tools",
+        "-p",
+        "test_capture.py"
+      ]
+    ],
+    "e2e": [
+      [
+        "bash",
+        "scripts/verify-captures.sh"
+      ]
+    ]
+  },
+  "validation": {
+    "workflow": {
+      "required": [
+        "ci.yml",
+        "dependency-policy.yml"
+      ],
+      "ci_gates": [
+        "Build",
+        "Test"
+      ]
+    }
+  },
+  "tasks": {
+    "captures": [
+      [
+        "bash",
+        "scripts/verify-captures.sh"
+      ]
+    ]
+  }
+}
