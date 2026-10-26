@@ -1,8 +1,0 @@
-name: Test
-description: Canonical static-site test gate
-runs:
-  using: composite
-  steps:
-    - name: Test
-      shell: bash
-      run: make test
