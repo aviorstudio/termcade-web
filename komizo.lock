@@ -1,8 +1,8 @@
 {
   "version": 1,
-  "platform": "0.2.0",
-  "platform_revision": "6458b3e1328805b485c91ba1f09211f5bd45431b",
+  "platform": "0.2.4",
+  "platform_revision": "40086036977a5fc0119d6c4c1d5eb6ae3ab3b4b9",
   "manifest_sha256": "1580bc29604d7b18f6d17364a6f7b03a766aa3199a4ea9c1b53627b86efddf18",
-  "runtime_sha256": "7ccc08158092dd82839cfd8dd500841d137aae6b1c0862bdc4c2d8fbefdb6b30",
-  "recipe_sha256": "9f2b1b49bae02d898c3957d98d8864def57f024278b3ec63a21a3ba16575038f"
+  "runtime_sha256": "000c1991c455b7e1269646e40c05ebf4a1b0717197c34838d2b7669430b3e862",
+  "recipe_sha256": "e519f5bc5d0100fcfe922762ea2a440ef09f1b45b4f25dc3488f14f3638ee2a6"
 }
