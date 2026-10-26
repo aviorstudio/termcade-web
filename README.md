@@ -1,10 +1,10 @@
-<!-- Generated from private documentation source. Do not edit directly. Source SHA256: 27f75a8e5a19df5bfd2c105578e58685a9b52d33b0f3ef5c7a8ce96f1e0809ec -->
+<!-- Generated from private documentation source. Do not edit directly. Source SHA256: 5eb82b578ab7ab49f149e1404d5129f5fda6ba14b910323c2d791d217b9ad0c1 -->
 
-# Termcade website
+# termcade website
 
-Static Astro website for Termcade.
+Static Astro website for termcade.
 
-Install the [Komizo release](https://github.com/nicodes/komizo#install) matching `komizo.lock`, then run:
+Install the [komizo release](https://github.com/nicodes/komizo#install) matching `komizo.lock`, then run:
 
 ```sh
 komizo dev                 # Foreground development server
