@@ -21,7 +21,7 @@ const indexScreen = frame(indexFrame);
 
 const repo = 'https://github.com/aviorstudio/termcade';
 const releases = 'https://github.com/aviorstudio/termcade/releases';
-const docs = 'https://github.com/aviorstudio/termcade/blob/main/docs';
+const docs = 'https://github.com/aviorstudio/termcade#readme';
 const icon = (name: keyof typeof octicons, size = 16) => octicons[name].toSVG({ width: size, height: size });
 
 // Every game in the starter pack. They are packages embedded in the binary,
@@ -276,14 +276,8 @@ const contract = [
 						not a requirement.
 					</p>
 					<p class="links">
-						<a href={`${docs}/sdk.md`}>
-							SDK quickstart <span class="icon" set:html={icon('arrow-up-right', 13)} />
-						</a>
-						<a href={`${docs}/packaging.md`}>
-							Packaging <span class="icon" set:html={icon('arrow-up-right', 13)} />
-						</a>
-						<a href={`${docs}/abi.md`}>
-							The wasm ABI <span class="icon" set:html={icon('arrow-up-right', 13)} />
+						<a href={docs}>
+							Usage and game setup <span class="icon" set:html={icon('arrow-up-right', 13)} />
 						</a>
 					</p>
 				</div>
@@ -307,7 +301,7 @@ const contract = [
 					<a class="cta" href={releases}>
 						Get the binary ↗
 					</a>
-					<a href={`${docs}/sdk.md`}>Make your own game ↗</a>
+					<a href={docs}>Make your own game ↗</a>
 				</div>
 				<p>Sandboxed WebAssembly games. A fixed 60-tick update loop. Four directions, two action buttons and start.</p>
 			</section>
