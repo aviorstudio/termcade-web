@@ -1,5 +1,0 @@
-[tools]
-bun = "1.4.1"
-# The browser smoke check (tools/browser-check.mjs) runs on node, not bun --
-# playwright-core does not support the bun runtime.
-node = "24.18.1"
