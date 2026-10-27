@@ -1,4 +1,4 @@
-<!-- Generated from private documentation source. Do not edit directly. Source SHA256: 5eb82b578ab7ab49f149e1404d5129f5fda6ba14b910323c2d791d217b9ad0c1 -->
+<!-- Generated from private documentation source. Do not edit directly. Source SHA256: 33b8bdb25066b5ae0c8c4bd6628f72e4a6dc79f1b4ecc2b3df43337b1c1dbdec -->
 
 # termcade website
 
@@ -14,3 +14,11 @@ komizo describe            # Inspect tools and commands
 ```
 
 Ctrl-C stops development. The capture checker verifies the pinned released CLI before executing it. This website needs no runtime credentials or credential `.env` file.
+
+## Install the CLI
+
+```sh
+curl -fsSL https://www.termca.de/install | sh
+```
+
+See [termcade](https://github.com/aviorstudio/termcade#readme) for setup and installation options.
