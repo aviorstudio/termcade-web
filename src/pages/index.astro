@@ -105,6 +105,7 @@ const contract = [
 	{ term: 'Dependencies', def: 'the sdk module, which depends on nothing outside the standard library' },
 	{ term: 'Boundary', def: 'wasm ABI v1, frozen. A host refuses a guest whose version it does not speak' },
 ];
+const installCommand = "curl -fsSL https://www.termca.de/install | sh";
 ---
 
 <Full>
@@ -168,7 +169,7 @@ const contract = [
 						have.
 					</p>
 					<div>
-						<code>go run github.com/aviorstudio/termcade@latest</code>
+						<pre class="cli-install"><code>{installCommand + '\ntermcade'}</code></pre>
 						<span>TRUECOLOR TERMINAL / 80×24 OR LARGER / PLAY OFFLINE</span>
 					</div>
 				</div>
@@ -1117,5 +1118,16 @@ const contract = [
 			align-items: start;
 			gap: 20px;
 		}
+	}
+
+	.cli-install {
+		max-width: 100%;
+		margin: 18px 0;
+		padding: 14px;
+		border: 1px solid currentColor;
+		white-space: pre-wrap;
+		overflow-wrap: anywhere;
+		font-size: 12px;
+		line-height: 1.6;
 	}
 </style>
