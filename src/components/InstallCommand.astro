@@ -1,0 +1,84 @@
+---
+interface Props {
+	command: string;
+	method: string;
+}
+
+const { command, method } = Astro.props;
+---
+
+<div class="install-command-row" data-install-command>
+	<pre class="install-command-code"><code>{command}</code></pre>
+	<button class="install-copy" type="button" data-copy-command aria-label={`Copy ${method} install command`} hidden>
+		<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+			<rect x="8" y="8" width="12" height="12" rx="2" />
+			<path d="M16 8V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h4" />
+		</svg>
+		<span data-copy-label>Copy</span>
+	</button>
+	<span class="copy-status" role="status" aria-live="polite" data-copy-status></span>
+</div>
+
+<style>
+	.install-command-row {
+		display: flex;
+		align-items: stretch;
+		gap: 8px;
+		max-width: 100%;
+		min-width: 0;
+		margin: 12px 0;
+	}
+	.install-command-code {
+		flex: 1;
+		min-width: 0;
+		margin: 0;
+		padding: 12px;
+		border: 1px solid currentColor;
+		border-radius: 6px;
+		font-size: 12px;
+		line-height: 1.6;
+		text-align: left;
+		white-space: pre-wrap;
+		overflow-wrap: anywhere;
+	}
+	.install-command-code code {
+		font: inherit;
+		font-family: ui-monospace, monospace;
+	}
+	.install-copy {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 6px;
+		flex-shrink: 0;
+		min-width: 44px;
+		min-height: 44px;
+		padding: 8px 10px;
+		border: 1px solid currentColor;
+		border-radius: 6px;
+		background: transparent;
+		color: inherit;
+		font: inherit;
+		font-size: 12px;
+		cursor: pointer;
+	}
+	.install-copy[hidden] {
+		display: none;
+	}
+	.install-copy:focus-visible {
+		outline: 2px solid currentColor;
+		outline-offset: 3px;
+	}
+	.install-copy[aria-busy='true'] {
+		cursor: wait;
+	}
+	.copy-status {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		padding: 0;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
+	}
+</style>
