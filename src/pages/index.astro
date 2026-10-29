@@ -1,4 +1,5 @@
 ---
+import InstallCommand from '../components/InstallCommand.astro';
 import Full from '../layouts/Full.astro';
 import octicons from '@primer/octicons';
 
@@ -105,7 +106,8 @@ const contract = [
 	{ term: 'Dependencies', def: 'the sdk module, which depends on nothing outside the standard library' },
 	{ term: 'Boundary', def: 'wasm ABI v1, frozen. A host refuses a guest whose version it does not speak' },
 ];
-const installCommand = "curl -fsSL https://www.termca.de/install | sh";
+const installCommand = "curl -fsSL https://termca.de/install | sh";
+const miseCommand = "mise use --global github:aviorstudio/termcade@latest";
 ---
 
 <Full>
@@ -169,7 +171,11 @@ const installCommand = "curl -fsSL https://www.termca.de/install | sh";
 						have.
 					</p>
 					<div>
-						<pre class="cli-install"><code>{installCommand + '\ntermcade'}</code></pre>
+						<p>curl</p>
+						<InstallCommand command={installCommand} method="curl" />
+						<p>mise</p>
+						<InstallCommand command={miseCommand} method="mise" />
+						<p>Then run <code>termcade</code>.</p>
 						<span>TRUECOLOR TERMINAL / 80×24 OR LARGER / PLAY OFFLINE</span>
 					</div>
 				</div>
@@ -315,6 +321,7 @@ const installCommand = "curl -fsSL https://www.termca.de/install | sh";
 			</nav>
 		</footer>
 	</div>
+	<script is:inline type="module" src="/install-copy.js"></script>
 </Full>
 <style>
 	* {
