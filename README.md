@@ -1,4 +1,4 @@
-<!-- Generated from private documentation source. Do not edit directly. Source SHA256: 91e90734322f591da75d0ea91d003ff21b536b6be8789258e6405500a6ea3e52 -->
+<!-- Generated from private documentation source. Do not edit directly. Source SHA256: 47201f272527635e4061a5fbbe6255d2eff1cc75ef7fb9104ef1e4ea57ba803b -->
 
 # termcade website
 
@@ -29,6 +29,6 @@ Or with mise:
 mise use --global github:aviorstudio/termcade@latest
 ```
 
-Each install command has a Copy button with confirmation. If clipboard access is unavailable, the command remains selectable for manual copying.
+An icon-only copy control sits on the right inside each install-command outline and shows a checkmark after copying. If clipboard access is unavailable, the command remains selectable for manual copying.
 
 See [termcade](https://github.com/aviorstudio/termcade#readme) for setup and installation options.
