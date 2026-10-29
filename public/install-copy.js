@@ -46,16 +46,19 @@ document.addEventListener('click', async (event) => {
 	button.setAttribute('aria-busy', 'true');
 	try {
 		await writeCommand(code.textContent ?? '');
+		button.dataset.copyState = 'copied';
 		label.textContent = 'Copied!';
 		status.textContent = 'Install command copied.';
 		resets.set(
 			button,
 			setTimeout(() => {
+				delete button.dataset.copyState;
 				label.textContent = 'Copy';
 				status.textContent = '';
 			}, 2000),
 		);
 	} catch {
+		delete button.dataset.copyState;
 		label.textContent = 'Select text';
 		status.textContent = 'Copy failed. Select and copy the command.';
 		const range = document.createRange();

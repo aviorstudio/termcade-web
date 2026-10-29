@@ -9,12 +9,13 @@ const { command, method } = Astro.props;
 
 <div class="install-command-row" data-install-command>
 	<pre class="install-command-code"><code>{command}</code></pre>
-	<button class="install-copy" type="button" data-copy-command aria-label={`Copy ${method} install command`} hidden>
-		<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+	<button class="install-copy" type="button" data-copy-command aria-label={`Copy ${method} install command`} title={`Copy ${method} install command`} hidden>
+		<svg class="copy-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
 			<rect x="8" y="8" width="12" height="12" rx="2" />
 			<path d="M16 8V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h4" />
 		</svg>
-		<span data-copy-label>Copy</span>
+		<svg class="copied-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m5 12 4 4L19 6" /></svg>
+		<span class="copy-status" data-copy-label aria-hidden="true">Copy</span>
 	</button>
 	<span class="copy-status" role="status" aria-live="polite" data-copy-status></span>
 </div>
@@ -22,8 +23,10 @@ const { command, method } = Astro.props;
 <style>
 	.install-command-row {
 		display: flex;
-		align-items: stretch;
-		gap: 8px;
+		align-items: center;
+		gap: 0;
+		border: 1px solid currentColor;
+		border-radius: 6px;
 		max-width: 100%;
 		min-width: 0;
 		margin: 12px 0;
@@ -33,8 +36,7 @@ const { command, method } = Astro.props;
 		min-width: 0;
 		margin: 0;
 		padding: 12px;
-		border: 1px solid currentColor;
-		border-radius: 6px;
+		border: 0;
 		font-size: 12px;
 		line-height: 1.6;
 		text-align: left;
@@ -53,21 +55,31 @@ const { command, method } = Astro.props;
 		flex-shrink: 0;
 		min-width: 44px;
 		min-height: 44px;
-		padding: 8px 10px;
-		border: 1px solid currentColor;
-		border-radius: 6px;
+		width: 44px;
+		height: 44px;
+		margin-right: 4px;
+		padding: 0;
+		border: 0;
+		border-radius: 4px;
 		background: transparent;
 		color: inherit;
 		font: inherit;
 		font-size: 12px;
 		cursor: pointer;
 	}
+	.copied-icon,
+	.install-copy[data-copy-state='copied'] .copy-icon {
+		display: none;
+	}
+	.install-copy[data-copy-state='copied'] .copied-icon {
+		display: block;
+	}
 	.install-copy[hidden] {
 		display: none;
 	}
 	.install-copy:focus-visible {
 		outline: 2px solid currentColor;
-		outline-offset: 3px;
+		outline-offset: -4px;
 	}
 	.install-copy[aria-busy='true'] {
 		cursor: wait;
