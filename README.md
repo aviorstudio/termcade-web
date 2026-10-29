@@ -1,4 +1,4 @@
-<!-- Generated from private documentation source. Do not edit directly. Source SHA256: 33b8bdb25066b5ae0c8c4bd6628f72e4a6dc79f1b4ecc2b3df43337b1c1dbdec -->
+<!-- Generated from private documentation source. Do not edit directly. Source SHA256: 91e90734322f591da75d0ea91d003ff21b536b6be8789258e6405500a6ea3e52 -->
 
 # termcade website
 
@@ -17,8 +17,18 @@ Ctrl-C stops development. The capture checker verifies the pinned released CLI b
 
 ## Install the CLI
 
+With curl:
+
 ```sh
-curl -fsSL https://www.termca.de/install | sh
+curl -fsSL https://termca.de/install | sh
 ```
+
+Or with mise:
+
+```sh
+mise use --global github:aviorstudio/termcade@latest
+```
+
+Each install command has a Copy button with confirmation. If clipboard access is unavailable, the command remains selectable for manual copying.
 
 See [termcade](https://github.com/aviorstudio/termcade#readme) for setup and installation options.
