@@ -1,16 +1,16 @@
-<!-- Generated from private documentation source. Do not edit directly. Source SHA256: 47201f272527635e4061a5fbbe6255d2eff1cc75ef7fb9104ef1e4ea57ba803b -->
+<!-- Generated from private documentation source. Do not edit directly. Source SHA256: c8796295bcc36b9f48208d90eadd589afc04763aeadf89a42c7b3f97b52d6ea9 -->
 
 # termcade website
 
 Static Astro website for termcade.
 
-Install the [komizo release](https://github.com/nicodes/komizo#install) matching `komizo.lock`, then run:
+Install [mise](https://mise.jdx.dev/) and run `mise install`, then run:
 
 ```sh
-komizo dev                 # Foreground development server
-komizo check               # Build, output assertions and capture checks
+mise run dev                 # Development server
+mise run check               # Build, output assertions and capture checks
 komizo run captures        # Verify checked-in terminal captures
-komizo describe            # Inspect tools and commands
+mise tasks ls            # Inspect tools and commands
 ```
 
 Ctrl-C stops development. The capture checker verifies the pinned released CLI before executing it. This website needs no runtime credentials or credential `.env` file.
