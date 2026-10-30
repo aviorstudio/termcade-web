@@ -4,15 +4,16 @@
 "node" = "24.18.1"
 
 [env]
-TOOLS_ROOT = "{{ get_env(name='TOOLS_ROOT', default=config_root ~ '/.ci-tools') }}"
-GOTOOLCHAIN = "local"
-PYTHONDONTWRITEBYTECODE = "1"
+"TOOLS_ROOT" = "{{ get_env(name='TOOLS_ROOT', default=config_root ~ '/.ci-tools') }}"
+"GOTOOLCHAIN" = "local"
+"PYTHONDONTWRITEBYTECODE" = "1"
 
 [tasks."install"]
 run = ["bun install --frozen-lockfile"]
 
 [tasks."build"]
-run = ["bun run build"]
+run = "python3 \"$TOOLS_ROOT/helpers/verification.py\" build --name build --artifact dist -- mise run _build"
+depends = ["install"]
 
 [tasks."artifact-check"]
 run = ["bash scripts/test-site.sh"]
@@ -25,7 +26,8 @@ run = ["bun run dev"]
 run = ["bun -e 'const fs=require('\"'\"'node:fs'\"'\"');for(const p of ['\"'\"'dist'\"'\"','\"'\"'.astro'\"'\"'])fs.rmSync(p,{recursive:true,force:true})'"]
 
 [tasks."unit"]
-run = ["python3 -m unittest discover -s tools -p test_capture.py"]
+run = "python3 \"$TOOLS_ROOT/helpers/verification.py\" test --name unit --artifact dist -- mise run _unit"
+depends = ["install"]
 
 [tasks."e2e"]
 run = ["bash scripts/verify-captures.sh"]
@@ -35,7 +37,23 @@ depends = ["build"]
 run = ["bash scripts/verify-captures.sh"]
 
 [tasks."test"]
-run = [{"task" = "unit"}]
+run = "python3 \"$TOOLS_ROOT/helpers/verification.py\" session --test unit -- mise run _test-stages"
 
 [tasks."check"]
+run = "python3 \"$TOOLS_ROOT/helpers/verification.py\" session --test unit -- mise run _check-stages"
+
+[tasks."_build"]
+run = ["bun run build"]
+hide = true
+
+[tasks."_unit"]
+run = ["python3 -m unittest discover -s tools -p test_capture.py"]
+hide = true
+
+[tasks."_test-stages"]
+run = [{"task" = "unit"}]
+hide = true
+
+[tasks."_check-stages"]
 run = [{"task" = "install"}, {"task" = "unit"}, {"task" = "build"}, {"task" = "artifact-check"}, {"task" = "e2e"}]
+hide = true
