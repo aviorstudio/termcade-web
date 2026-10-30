@@ -1,4 +1,4 @@
-<!-- Generated from private documentation source. Do not edit directly. Source SHA256: 67710c684f2952d7711cc3b23829ac0cbd8b8f6f18fcd42a2ef155000862216c -->
+<!-- Generated from private documentation source. Do not edit directly. Source SHA256: 1b2281220c22ad335069725799884c08e88f672dcc6f29ffc962485ba8a92057 -->
 
 # termcade website
 
@@ -9,7 +9,7 @@ Install [mise](https://mise.jdx.dev/) and run `mise install`, then run:
 ```sh
 mise run dev                 # Development server
 mise run check               # Build, output assertions and capture checks
-komizo run captures        # Verify checked-in terminal captures
+mise run captures        # Verify checked-in terminal captures
 mise tasks ls            # Inspect tools and commands
 ```
 
