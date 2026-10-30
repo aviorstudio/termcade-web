@@ -1,0 +1,41 @@
+[tools]
+"python" = "3.13.11"
+"bun" = "1.4.1"
+"node" = "24.18.1"
+
+[env]
+TOOLS_ROOT = "{{ get_env(name='TOOLS_ROOT', default=config_root ~ '/.ci-tools') }}"
+GOTOOLCHAIN = "local"
+PYTHONDONTWRITEBYTECODE = "1"
+
+[tasks."install"]
+run = ["bun install --frozen-lockfile"]
+
+[tasks."build"]
+run = ["bun run build"]
+
+[tasks."artifact-check"]
+run = ["bash scripts/test-site.sh"]
+depends = ["build"]
+
+[tasks."dev"]
+run = ["bun run dev"]
+
+[tasks."clean"]
+run = ["bun -e 'const fs=require('\"'\"'node:fs'\"'\"');for(const p of ['\"'\"'dist'\"'\"','\"'\"'.astro'\"'\"'])fs.rmSync(p,{recursive:true,force:true})'"]
+
+[tasks."unit"]
+run = ["python3 -m unittest discover -s tools -p test_capture.py"]
+
+[tasks."e2e"]
+run = ["bash scripts/verify-captures.sh"]
+depends = ["build"]
+
+[tasks."captures"]
+run = ["bash scripts/verify-captures.sh"]
+
+[tasks."test"]
+run = [{"task" = "unit"}]
+
+[tasks."check"]
+run = [{"task" = "install"}, {"task" = "unit"}, {"task" = "build"}, {"task" = "artifact-check"}, {"task" = "e2e"}]
