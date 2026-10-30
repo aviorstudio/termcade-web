@@ -1,4 +1,4 @@
-<!-- Generated from private documentation source. Do not edit directly. Source SHA256: 794f85d4b82cec70d9b30d50923d4b0072628835f33389b38f079e55109f4343 -->
+<!-- Generated from private documentation source. Do not edit directly. Source SHA256: 1b2281220c22ad335069725799884c08e88f672dcc6f29ffc962485ba8a92057 -->
 
 # termcade website
 
@@ -9,7 +9,7 @@ Install [mise](https://mise.jdx.dev/) and run `mise install`, then run:
 ```sh
 mise run dev                 # Development server
 mise run check               # Build, output assertions and capture checks
-komizo run captures        # Verify checked-in terminal captures
+mise run captures        # Verify checked-in terminal captures
 mise tasks ls            # Inspect tools and commands
 ```
 
@@ -37,9 +37,11 @@ For contributor verification, prepare the pinned helper source before running na
 
 ```sh
 git clone https://github.com/nicodes/tools.git .ci-tools
-git -C .ci-tools checkout --detach f7e243524ce2aa29f299e4c79db33001f72f4a30
+git -C .ci-tools checkout --detach 091101094fedf5ce2e67c339c1c9c842d6a662dc
 mise install
 mise run check
 ```
 
 Build commands record source and exact regular output hashes. Declared tests produce evidence from the current verification session in `.artifacts/verification`.
+
+`mise run dev` owns the checkout’s foreground process tree. Dependency preparation and the application use an isolated local environment through the pinned optional ghenv CLI; no account is needed. Startup refuses changes to the native task policy during preparation. `mise run stop` stops only that checkout, and `mise run clean` refuses cleanup while its session is active.
