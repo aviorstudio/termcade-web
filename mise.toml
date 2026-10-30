@@ -20,10 +20,11 @@ run = ["bash scripts/test-site.sh"]
 depends = ["build"]
 
 [tasks."dev"]
-run = ["bun run dev"]
+run = "python3 \"$TOOLS_ROOT/helpers/dev.py\" run --state .artifacts/dev --prepare '[\"ghenv\",\"local\",\"--\",\"mise\",\"run\",\"install\"]' --policy-input mise.toml -- ghenv local -- python3 \"$TOOLS_ROOT/helpers/static-site.py\""
+tools = {"github:nicodes/ghenv" = "v0.4.0"}
 
 [tasks."clean"]
-run = ["bun -e 'const fs=require('\"'\"'node:fs'\"'\"');for(const p of ['\"'\"'dist'\"'\"','\"'\"'.astro'\"'\"'])fs.rmSync(p,{recursive:true,force:true})'"]
+run = "python3 \"$TOOLS_ROOT/helpers/dev.py\" clean --state .artifacts/dev -- mise run _clean"
 
 [tasks."unit"]
 run = "python3 \"$TOOLS_ROOT/helpers/verification.py\" test --name unit --artifact dist -- mise run _unit"
@@ -56,4 +57,11 @@ hide = true
 
 [tasks."_check-stages"]
 run = [{"task" = "install"}, {"task" = "unit"}, {"task" = "build"}, {"task" = "artifact-check"}, {"task" = "e2e"}]
+hide = true
+
+[tasks."stop"]
+run = "python3 \"$TOOLS_ROOT/helpers/dev.py\" stop --state .artifacts/dev"
+
+[tasks."_clean"]
+run = ["bun -e 'const fs=require('\"'\"'node:fs'\"'\"');for(const p of ['\"'\"'dist'\"'\"','\"'\"'.astro'\"'\"'])fs.rmSync(p,{recursive:true,force:true})'"]
 hide = true
