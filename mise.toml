@@ -16,7 +16,7 @@ run = "python3 \"$TOOLS_ROOT/helpers/verification.py\" build --name build --arti
 depends = ["install"]
 
 [tasks."artifact-check"]
-run = ["bash scripts/test-site.sh"]
+run = ["bash scripts/test-site.sh", "python3 \"$TOOLS_ROOT/helpers/site-contract.py\" dist"]
 depends = ["build"]
 
 [tasks."dev"]
@@ -56,12 +56,15 @@ run = [{"task" = "unit"}]
 hide = true
 
 [tasks."_check-stages"]
-run = [{"task" = "install"}, {"task" = "unit"}, {"task" = "build"}, {"task" = "artifact-check"}, {"task" = "e2e"}]
+run = [{task = "install"}, {task = "lint"}, {task = "unit"}, {task = "build"}, {task = "artifact-check"}, {task = "e2e"}]
 hide = true
 
 [tasks."stop"]
 run = "python3 \"$TOOLS_ROOT/helpers/dev.py\" stop --state .artifacts/dev"
 
 [tasks."_clean"]
-run = ["bun -e 'const fs=require('\"'\"'node:fs'\"'\"');for(const p of ['\"'\"'dist'\"'\"','\"'\"'.astro'\"'\"'])fs.rmSync(p,{recursive:true,force:true})'"]
+run = "python3 \"$TOOLS_ROOT/helpers/clean.py\" --path dist --path .astro"
 hide = true
+
+[tasks."lint"]
+run = ["bash -n scripts/*.sh", "python3 -c 'import ast;from pathlib import Path;[ast.parse(p.read_text(),filename=str(p)) for p in Path(\"scripts\").rglob(\"*.py\")]'"]
