@@ -277,9 +277,9 @@ const miseCommand = "mise use --global github:aviorstudio/termcade@latest";
 					<p>
 						<code>termcade dev new you/mygame</code> scaffolds a game that already runs,
 						<code>termcade dev build</code> turns the directory into a <code>.tcade</code>, and
-						<code>termcade dev install</code> puts the local build on your own menu. A game is a Go package implementing
-						one interface — and because the boundary is a frozen wasm ABI rather than a Go one, Go is a convenience and
-						not a requirement.
+						<code>termcade dev install</code> puts the local build on your own menu. The supplied scaffold is a Rust crate implementing
+						<code>termcade_sdk::Game</code>. Packages target a frozen WebAssembly ABI that keeps each game separate from
+						the arcade.
 					</p>
 					<p class="links">
 						<a href={docs}>

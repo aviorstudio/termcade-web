@@ -9,7 +9,7 @@ interface Props {
 const {
 	title = 'termcade — an arcade in your terminal',
 	description =
-		'A terminal arcade in Go. Classic games drawn at sub-cell resolution with block pixels, shipped with Asteroid, Tetris and Brickough, running every game as a sandboxed WebAssembly package — and the same binary is the dev kit for writing your own.',
+		'A terminal arcade in Rust. Classic games drawn at sub-cell resolution with block pixels, shipped with Asteroid, Tetris and Brickough, running every game as a sandboxed WebAssembly package — and the same binary is the dev kit for writing your own.',
 } = Astro.props;
 
 // The host appears once, as `site` in astro.config.mjs; everything here
@@ -21,7 +21,7 @@ const canonical = new URL(Astro.url.pathname, site);
 // Two entries rather than one. The SoftwareApplication is the thing people are
 // being sent to install; the FAQPage is the questions this page actually
 // answers, and they are the queries that bring anyone here — "terminal games",
-// "play games in the terminal", "go terminal game engine". Both describe what
+// "play games in the terminal", "Rust terminal game engine". Both describe what
 // is on the page, which is the only kind of structured data worth emitting.
 const structuredData = [
 	{
@@ -53,7 +53,7 @@ const structuredData = [
 				acceptedAnswer: {
 					'@type': 'Answer',
 					text:
-						'A truecolor terminal at 80x24 or larger, and Go if you are running it from source. Prebuilt archives are published on GitHub releases. Terminals that speak the Kitty keyboard protocol also give exact held-key input; the rest fall back to auto-repeat.',
+						'A truecolor terminal at 80x24 or larger, and Rust if you are building from source. Prebuilt archives are published on GitHub releases. Terminals that speak the Kitty keyboard protocol also give exact held-key input; the rest fall back to auto-repeat.',
 				},
 			},
 			{
@@ -62,7 +62,7 @@ const structuredData = [
 				acceptedAnswer: {
 					'@type': 'Answer',
 					text:
-						'No game is compiled into the arcade. Every game, the bundled ones included, is a WebAssembly package that runs sandboxed under wazero with no filesystem and no network access, on a per-call watchdog. A game that crashes shows a crash screen; a game that fails to install is listed dimmed with the reason.',
+						'No game is compiled into the arcade. Every game, the bundled ones included, is a WebAssembly package that runs sandboxed under Wasmtime with no filesystem and no network access, on a per-call watchdog. A game that crashes shows a crash screen; a game that fails to install is listed dimmed with the reason.',
 				},
 			},
 			{
@@ -71,7 +71,7 @@ const structuredData = [
 				acceptedAnswer: {
 					'@type': 'Answer',
 					text:
-						'Yes — the arcade is the whole dev kit. termcade dev new scaffolds a playable game, termcade dev build packages it into a .tcade file, and termcade dev install installs the local package. A game is a Go package implementing the sdk.Game contract: fixed 60-tick-per-second updates, a seven-key input vocabulary, a structured HUD, and drawing onto a canvas in square logical units.',
+						'Yes — the arcade is the whole dev kit. termcade dev new scaffolds a playable game, termcade dev build packages it into a .tcade file, and termcade dev install installs the local package. The supplied game scaffold is a Rust crate implementing termcade_sdk::Game: fixed 60-tick-per-second updates, a seven-key input vocabulary, a structured HUD, and drawing onto a canvas in square logical units.',
 				},
 			},
 		],
