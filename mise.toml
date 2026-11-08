@@ -4,6 +4,7 @@
 "node" = "24.18.1"
 
 [env]
+BUN_OPTIONS = "--no-env-file"
 "TOOLS_ROOT" = "{{ get_env(name='TOOLS_ROOT', default=config_root ~ '/.ci-tools') }}"
 "GOTOOLCHAIN" = "local"
 "PYTHONDONTWRITEBYTECODE" = "1"

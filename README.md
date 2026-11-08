@@ -1,4 +1,4 @@
-<!-- Generated from private documentation source. Do not edit directly. Source SHA256: 40f78207d513b0ac536c479f210daa7ee677132937cacf9fe3d1150b6e8df1c1 -->
+<!-- Generated from private documentation source. Do not edit directly. Source SHA256: fae2d18d66004bd0fda699314a889503aef44b51aae869a0ae273e00b31040e3 -->
 
 # termcade website
 
@@ -37,7 +37,7 @@ For contributor verification, prepare the pinned helper source before running na
 
 ```sh
 git clone https://github.com/nicodes/tools.git .ci-tools
-git -C .ci-tools checkout --detach 39666e8d26d2bd0e1c7e5fee6f289fd0fd3a5202
+git -C .ci-tools checkout --detach 46bf98735de2e7fe41cca1042c20c98f5b01824a
 mise install
 mise run check
 ```
