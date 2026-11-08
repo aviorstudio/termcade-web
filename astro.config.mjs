@@ -11,6 +11,6 @@ import { defineConfig } from 'astro/config';
 // the SoftwareApplication JSON-LD — derives from Astro.site; robots.txt and
 // sitemap.xml live in public/, are copied as-is, and carry the host literally.
 // https://astro.build/config
-export default defineConfig({
+export default defineConfig({ vite: { envDir: false },
 	site: 'https://www.termca.de',
 });
